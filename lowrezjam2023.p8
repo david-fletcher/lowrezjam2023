@@ -16,12 +16,15 @@ function _init()
     -- 64x64 mode!
     poke(0x5f2c, 3)
 
-    _gameState = STATES.SPLASH
+    -- TODO: turn back to STATES.SPLASH before release!
+    _gameState = STATES.MENU
 end
 
 function _update()
     if (_gameState == STATES.SPLASH) then
         updateSplashScreen()
+    elseif (_gameState == STATES.MENU) then
+        updateMenu()
     end
 end
 
@@ -30,6 +33,8 @@ function _draw()
 
     if (_gameState == STATES.SPLASH) then
         drawSplashScreen()
+    elseif (_gameState == STATES.MENU) then
+        drawMenu()
     end
 
     if (_debug) then
@@ -67,6 +72,22 @@ function drawSplashScreen()
     print("a game by", 14, 23, color)
     print("jammigans", 14, 29, color)
     print("& fletch",  16, 35, color)
+end
+
+-->8
+-- menu
+local _title = {
+    x = 22,
+    y = 15,
+}
+
+function updateMenu()
+
+end
+
+function drawMenu()
+    rectfill(20, 13, 42, 21, 8)
+    print("title", _title.x, _title.y, 7)
 end
 
 __gfx__
