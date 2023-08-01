@@ -55,27 +55,18 @@ end
 
 function drawSplashScreen()
     -- the "animation" will just be drawing things slightly different on the screen depending on what frame we're on
-    if (_splash.curFrame > 0 and _splash.curFrame < 10) then
-        print("a game by", 14, 23, 5)
-        print("jammigans", 14, 29, 5)
-        print("& fletch",  16, 35, 5)
-    elseif (_splash.curFrame >= 10 and _splash.curFrame < 20) then
-        print("a game by", 14, 23, 6)
-        print("jammigans", 14, 29, 6)
-        print("& fletch",  16, 35, 6)
+    local color = 0
+    if (_splash.curFrame > 0 and _splash.curFrame < 10) or (_splash.curFrame >= 100 and _splash.curFrame < 110) then
+        color = 5
+    elseif (_splash.curFrame >= 10 and _splash.curFrame < 20) or (_splash.curFrame >= 90 and _splash.curFrame < 100) then
+        color = 6
     elseif (_splash.curFrame >= 20 and _splash.curFrame < 90) then
-        print("a game by", 14, 23, 7)
-        print("jammigans", 14, 29, 7)
-        print("& fletch",  16, 35, 7)
-    elseif (_splash.curFrame >= 90 and _splash.curFrame < 100) then
-        print("a game by", 14, 23, 6)
-        print("jammigans", 14, 29, 6)
-        print("& fletch",  16, 35, 6)
-    elseif (_splash.curFrame >= 100 and _splash.curFrame < 110) then
-        print("a game by", 14, 23, 5)
-        print("jammigans", 14, 29, 5)
-        print("& fletch",  16, 35, 5)
+        color = 7
     end
+
+    print("a game by", 14, 23, color)
+    print("jammigans", 14, 29, color)
+    print("& fletch",  16, 35, color)
 end
 
 __gfx__
