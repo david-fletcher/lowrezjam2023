@@ -40,7 +40,7 @@ function _init()
     palt(2, true)
 
     -- TODO: turn back to g_game_states.e_splash before release!
-    g_current_state = g_game_states.e_loading
+    g_current_state = g_game_states.e_splash
 end
 
 function _update()
@@ -56,7 +56,7 @@ function _update()
 end
 
 function _draw()
-    cls(2)
+    cls(0)
 
     if (g_current_state == g_game_states.e_splash) then
         draw_splashscreen()
@@ -119,7 +119,7 @@ local g_menu = {
     options = { "play", "toggle sfx", "quit" },
     xtarget = { 24, -12, -48 }, -- calculated x values to center each option
     actions = {
-        function() g_current_state = g_game_states.e_playing end, -- play
+        function() g_current_state = g_game_states.e_loading end, -- play
         function() g_muted = not g_muted end, -- mute sfx
         function() run() end -- quit
     },
