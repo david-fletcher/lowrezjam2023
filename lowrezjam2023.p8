@@ -56,11 +56,13 @@ function _update()
 end
 
 function _draw()
-    cls(0)
+    cls(5)
 
     if (g_current_state == g_game_states.e_splash) then
+        cls(0)
         draw_splashscreen()
     elseif (g_current_state == g_game_states.e_menu) then
+        cls(0)
         draw_menu()
     elseif (g_current_state == g_game_states.e_playing) then
         draw_playing()
