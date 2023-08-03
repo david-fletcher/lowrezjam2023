@@ -40,7 +40,7 @@ function _init()
     palt(2, true)
 
     -- TODO: turn back to g_game_states.e_splash before release!
-    g_current_state = g_game_states.e_splash
+    g_current_state = g_game_states.e_loading
 end
 
 function _update()
@@ -225,12 +225,11 @@ function update_playing()
     end
 
     -- calculate player x and y
-    -- subtract 8 from y for a nice perspective / centered in the middle of the tile
     g_player.drawx = (g_tilesize / 2) - (g_player.width * 8 / 2) + (g_tilesize * (g_player.tilex-1))
-    g_player.drawy = (g_tilesize / 2) - (g_player.height * 8 / 2) + (g_tilesize * (g_player.tiley-1)) - 4
+    g_player.drawy = (g_tilesize / 2) - (g_player.height * 8 / 2) + (g_tilesize * (g_player.tiley-1))
 
     -- camera movement
-    if (g_player.drawx-g_camera.xtarget <= 16 and g_camera.xtarget > 0) then
+    if (g_player.drawx-g_camera.xtarget < 16 and g_camera.xtarget > 0) then
         g_camera.xtarget -= 16
     end
 
@@ -238,7 +237,7 @@ function update_playing()
         g_camera.xtarget += 16
     end
 
-    if (g_player.drawy-g_camera.ytarget <= 16 and g_camera.ytarget > 0) then
+    if (g_player.drawy-g_camera.ytarget < 16 and g_camera.ytarget > 0) then
         g_camera.ytarget -= 16
     end
 
@@ -249,6 +248,9 @@ function update_playing()
     -- lerp towars our target
     g_camera.x = lerp(g_camera.x, g_camera.xtarget, 0.3)
     g_camera.y = lerp(g_camera.y, g_camera.ytarget, 0.3)
+
+    -- subtract 4 from y for a nice perspective / centered in the middle of the tile
+    g_player.drawy = g_player.drawy - 4
 
     -- check for collectibles
 end
