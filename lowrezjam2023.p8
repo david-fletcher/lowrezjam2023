@@ -11,7 +11,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {false, false} -- 1 is CPU usage, 2 is player / wall data
+local g_debug = {true, false} -- 1 is CPU usage, 2 is player / wall data
 local g_muted = false
 
 -- magic numbers
@@ -42,10 +42,15 @@ function _init()
  palt(0, false)
  palt(9, true)
 
+ -- alter palette
+ pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
+
  -- TODO: turn back to g_game_states.e_splash before release!
  g_current_state = g_game_states.e_loading
 end
 
+local s = 8
+local tx = 0
 function _update()
  if (g_current_state == g_game_states.e_splash) then
   update_splashscreen()
@@ -56,6 +61,9 @@ function _update()
  elseif (g_current_state == g_game_states.e_playing) then
   update_playing()
  end
+
+ update_emitters()
+ update_particles()
 end
 
 function _draw()
@@ -74,9 +82,6 @@ function _draw()
   rectfill(0, 0, 22, 4, 0)
   print(stat(1), 0, 0, 7)
  end
- 
- -- alter palette
- pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
 end
 
 -->8
@@ -284,6 +289,9 @@ function draw_playing()
   map(0, j, 0, j*8, 128, 1)
  end
 
+ draw_objects()
+ draw_particles()
+
  if (g_debug[2]) then
   for i=0,g_world_tilewidth-1 do
    for j=0,g_world_tileheight-1 do
@@ -330,6 +338,48 @@ end
 function shadow(o)
  ovalfill(o.drawx, o.drawy+12, o.drawx+15, o.drawy+17, 4)
  ovalfill(o.drawx+1, o.drawy+12, o.drawx+14, o.drawy+17, 2)
+end
+
+-- ----------------
+-- PARTICLE SYSTEM
+-- ----------------
+local g_particles = {}
+local g_emitters = {}
+
+function update_particles()
+ local delete = {}
+ for idx,particle in ipairs(g_particles) do
+  particle.x = particle.x + particle.dx
+  particle.y = particle.y + particle.dy
+  particle.r = particle.r + particle.dr
+  particle.ttl -= 1
+
+  if (particle.ttl <= 0) then
+   add(delete, idx)
+  end
+ end
+
+ for i=#delete,1,-1 do
+  deli(g_particles, delete[i])
+ end
+end
+
+function draw_particles()
+ for particle in all(g_particles) do
+  circfill(particle.x, particle.y, particle.r, particle.c)
+ end
+end
+
+function clear_particles()
+ g_particles = {}
+end
+
+function update_emitters()
+ for emitter in all(g_emitters) do
+  if (costatus(emitter.coroutine)) then
+   coresume(emitter.coroutine)
+  end
+ end
 end
 
 __gfx__
