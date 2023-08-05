@@ -369,7 +369,7 @@ function spawn_bullet(tilex, tiley, direction)
  bullet.y = (g_tilesize / 2) - (4) + (g_tilesize * (tiley-1))
  bullet.w = 8
  bullet.h = 8
- bullet.dir = direction
+ bullet.dir = k_up
 
  bullet.update = function(self)
   if(self.dir == 0) then -- left
