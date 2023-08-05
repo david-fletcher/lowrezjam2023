@@ -375,7 +375,7 @@ function spawn_bullet(tilex, tiley, direction)
  local bullet = {}
  bullet.type = 'bullet'
 
- bullet.x = (g_tilesize / 2) - (4) + (g_tilesize * (tilex-1))
+ bullet.x = (g_tilesize / 2) - (9) + (g_tilesize * (tilex-1))
  bullet.y = (g_tilesize / 2) - (4) + (g_tilesize * (tiley-1))
  bullet.w = 8
  bullet.h = 8
