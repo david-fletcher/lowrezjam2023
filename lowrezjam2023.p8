@@ -58,7 +58,7 @@ end
 
 local s = 8
 local tx = 0
-function _update()
+function _update60()
  if (g_current_state == g_game_states.e_splash) then
   update_splashscreen()
  elseif (g_current_state == g_game_states.e_menu) then
