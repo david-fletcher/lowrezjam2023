@@ -11,7 +11,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {true, false} -- 1 is CPU usage, 2 is player / wall data
+local g_debug = {false, false} -- 1 is CPU usage, 2 is player / wall data
 local g_muted = false
 
 -- magic numbers
@@ -83,7 +83,7 @@ end
 -- splashscreen
 local g_splash = {
     cur_frame = 0,
-    last_frame = 110,
+    last_frame = 120,
 }
 
 function update_splashscreen()
@@ -100,19 +100,21 @@ function update_splashscreen()
 end
 
 function draw_splashscreen()
-    if (g_splash.cur_frame < 90) then
+    draw_menu()
+
+    if (g_splash.cur_frame < 110) then
         rectfill(0, 0, 63, 63, 0)
         print("a game by", 14, 23, 7)
         print("jammigans", 14, 29, 7)
         print("& fletch",  16, 35, 7)
-    elseif (g_splash.cur_frame >= 90 and g_splash.cur_frame < 100) then
-        draw_menu()
-        fillp(0b1111000011110000.1)
-        rectfill(0, 0, 63, 63, 0)
-        fillp()
-    elseif (g_splash.cur_frame >= 100 and g_splash.cur_frame <= 110) then
-        draw_menu()
-        fillp(0b1111111111110000.1)
+    else
+        if (g_splash.cur_frame >= 110 and g_splash.cur_frame < 113) then
+            fillp(0b1111000000000000.1)
+        elseif (g_splash.cur_frame >= 113 and g_splash.cur_frame < 116) then
+            fillp(0b1111111100000000.1)
+        elseif (g_splash.cur_frame >= 116 and g_splash.cur_frame <= 120) then
+            fillp(0b1111111111110000.1)
+        end
         rectfill(0, 0, 63, 63, 0)
         fillp()
     end
