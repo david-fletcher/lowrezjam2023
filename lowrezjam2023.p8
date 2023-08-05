@@ -82,30 +82,40 @@ end
 -->8
 -- splashscreen
 local g_splash = {
-    curFrame = 0,
-    totFrame = 120,
+    cur_frame = 0,
+    last_frame = 110,
 }
 
 function update_splashscreen()
-    if g_splash.curFrame == 0 then
+    if g_splash.cur_frame == 0 then
         play_sfx(2)
     end
 
-    g_splash.curFrame += 1
+    g_splash.cur_frame += 1
     
-    if (g_splash.curFrame > g_splash.totFrame) then
+    if (g_splash.cur_frame > g_splash.last_frame) then
         g_current_state = g_game_states.e_menu
-        g_splash.curFrame = 0
+        g_splash.cur_frame = 0
     end
 end
 
 function draw_splashscreen()
-    map(0, 0, 0, 0, 8, 8)
-    rectfill(13, 22, 49, 40, 5)
-
-    print("a game by", 14, 23, 7)
-    print("jammigans", 14, 29, 7)
-    print("& fletch",  16, 35, 7)
+    if (g_splash.cur_frame < 90) then
+        rectfill(0, 0, 63, 63, 0)
+        print("a game by", 14, 23, 7)
+        print("jammigans", 14, 29, 7)
+        print("& fletch",  16, 35, 7)
+    elseif (g_splash.cur_frame >= 90 and g_splash.cur_frame < 100) then
+        draw_menu()
+        fillp(0b1111000011110000.1)
+        rectfill(0, 0, 63, 63, 0)
+        fillp()
+    elseif (g_splash.cur_frame >= 100 and g_splash.cur_frame <= 110) then
+        draw_menu()
+        fillp(0b1111111111110000.1)
+        rectfill(0, 0, 63, 63, 0)
+        fillp()
+    end
 end
 
 -->8
