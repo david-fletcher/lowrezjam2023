@@ -40,7 +40,7 @@ local g_emitters = {}
 -- lifecycle
 function _init()
  -- enable alt palette in editor
- poke(0x5f2e,1)
+ --poke(0x5f2e,1)
 
  -- 64x64 mode!
  poke(0x5f2c, 3)
@@ -300,7 +300,8 @@ end
 function draw_playing()
  camera(g_camera.x, g_camera.y)
 
- -- for every map row
+	draw_objects()
+ -- for every map row 
  for j=0,64 do
   if (g_player.tiley == (j+1)/2) then
    -- draw shadow
@@ -313,7 +314,6 @@ function draw_playing()
   map(0, j, 0, j*8, 128, 1)
  end
 
- draw_objects()
  draw_particles()
 
  if (g_debug[2]) then
