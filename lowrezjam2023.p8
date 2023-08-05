@@ -43,7 +43,7 @@ function _init()
  palt(9, true)
 
  -- TODO: turn back to g_game_states.e_splash before release!
- g_current_state = g_game_states.e_splash
+ g_current_state = g_game_states.e_loading
 end
 
 function _update()
@@ -193,7 +193,7 @@ local g_player = {
  tilex = 2,
  tiley = 2,
  drawx = 16,
- drawy = 16,
+ drawy = 12,
  width = 2,
  height = 2
 }
@@ -299,6 +299,18 @@ function draw_playing()
   camera()
   print(g_player.tilex..","..g_player.tiley, 0, 0, 7)
  end
+end
+
+-->8
+-- objects
+local g_objects = {}
+
+function update_objects()
+
+end
+
+function draw_objects()
+
 end
 
 -->8
