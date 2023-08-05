@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
--- game title
+-- canyon crisis
 -- jammigans and fletch
 -- made for #lowrezjam 2023
 
