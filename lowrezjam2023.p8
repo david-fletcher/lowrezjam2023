@@ -242,14 +242,6 @@ function init_playing()
      add(g_walls[i+1], false)
     end
    end
-
-   -- remove from the map now that we've loaded it into memory
-   if (g_walls[i+1][j+1] == true) then
-    mset(celx, cely, 0)
-    mset(celx, cely+1, 0)
-    mset(celx+1, cely, 0)
-    mset(celx+1, cely+1, 0)
-   end
   end
  end
 
@@ -421,8 +413,6 @@ function new_player(tilex, tiley)
  player.draw = function(self)
   -- shadow
   shadow(self)
-  -- debug box
-  rect(self.x, self.y+4, self.x+15, self.y+19, 10)
 
   -- muzzle flash
   if (self.shooting >= 18) then
