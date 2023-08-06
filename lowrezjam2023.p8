@@ -39,7 +39,7 @@ local g_frame = 0
 -- lifecycle
 function _init()
  -- enable alt palette in editor
- poke(0x5f2e, 1)
+ --poke(0x5f2e, 1)
 
  -- 64x64 mode!
  poke(0x5f2c, 3)
@@ -262,7 +262,7 @@ function update_playing()
  -- player shooting
  if (btn(k_confirm) and g_player.shooting == 0) then
   spawn_bullet(g_player.tilex, g_player.tiley)
- 	g_player.shooting = 30
+ 	g_player.shooting = 20
  end
  
  if g_player.shooting > 0 then
@@ -305,12 +305,12 @@ function draw_playing()
    rect(g_player.drawx, g_player.drawy+4, g_player.drawx+15, g_player.drawy+19, 10)
 
    -- muzzle flash
-   if (g_player.shooting >= 25) then
-    spr(4, g_player.drawx-4, g_player.drawy-8, 2, 2)
-   elseif (g_player.shooting >= 20) then
-    spr(6, g_player.drawx-2, g_player.drawy-8, 2, 2)
-   elseif (g_player.shooting >= 15) then
-    circfill(g_player.drawx+2, g_player.drawy-2, 3, 8)
+   if (g_player.shooting >= 18) then
+    spr(4, g_player.drawx-6, g_player.drawy-12, 2, 2)
+   elseif (g_player.shooting >= 16) then
+    spr(6, g_player.drawx-3, g_player.drawy-12, 2, 2)
+   elseif (g_player.shooting >= 14) then
+    circfill(g_player.drawx, g_player.drawy, 3, 8)
    end
 
    -- player
@@ -375,7 +375,7 @@ function spawn_bullet(tilex, tiley)
  local bullet = {}
  bullet.type = 'bullet'
 
- bullet.x = -1 + (16 * (tilex-1))
+ bullet.x = -2 + (16 * (tilex-1))
  bullet.y = -4 + (16 * (tiley-1))
  bullet.w = 8
  bullet.h = 8
