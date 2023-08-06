@@ -335,6 +335,7 @@ function spawn_bullet(tilex, tiley)
 
  bullet.update = function(self)
   self.y -= 5
+  
   --[[
   if (g_tick) then
    self.framenum = (self.framenum + 1) % 3
@@ -423,7 +424,7 @@ function new_player(tilex, tiley)
   elseif (self.shooting >= 16) then
    spr(6, self.x-3, self.y-12, 2, 2)
   elseif (self.shooting >= 14) then
-   circfill(self.x, self.y, 3, 8)
+   circfill(self.x+1, self.y, 3, 8)
   end
 
   -- player
