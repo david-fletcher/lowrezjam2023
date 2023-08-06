@@ -52,7 +52,7 @@ function _init()
  pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
 
  -- TODO: turn back to g_game_states.e_splash before release!
- g_current_state = g_game_states.e_splash
+ g_current_state = g_game_states.e_loading
 end
 
 local s = 8
@@ -215,17 +215,12 @@ local g_camera = {
  offset = -6
 }
 
-local g_player = {
- tilex = 2,
- tiley = 16,
- drawx = 16,
- drawy = 16,
- shooting = 0
-}
-
+local g_player = nil
 local g_walls = {}
 
 function init_playing()
+ g_player = new_player(2, 16)
+
  for i=0,g_world_tilewidth-1 do
   add(g_walls, {})
   for j=0,g_world_tileheight-1 do
@@ -240,7 +235,7 @@ function init_playing()
     add(g_walls[i+1], true)
     new_barrel(i+1, j+1)
    else
-    if (rnd() < 0.1) then -- spawn alien on empty tile
+    if (j < 15 and rnd() < 0.1) then -- spawn alien on empty tile
      add(g_walls[i+1], true)
      new_alien(i+1, j+1)
     else
@@ -250,7 +245,6 @@ function init_playing()
 
    -- remove from the map now that we've loaded it into memory
    if (g_walls[i+1][j+1] == true) then
-    -- remove from the pico8 map
     mset(celx, cely, 0)
     mset(celx, cely+1, 0)
     mset(celx+1, cely, 0)
@@ -263,43 +257,19 @@ function init_playing()
 end
 
 function update_playing()
- -- player movement
- if(btnp(k_left) and g_player.tilex > 1 and not g_walls[g_player.tilex-1][g_player.tiley]) then
-  g_player.tilex -= 1
- end
-
- if (btnp(k_right) and g_player.tilex < g_world_tilewidth and not g_walls[g_player.tilex+1][g_player.tiley]) then
-  g_player.tilex += 1
- end
-
- if (btnp(k_up) and g_player.tiley > 1 and not g_walls[g_player.tilex][g_player.tiley-1]) then
-  g_player.tiley -= 1
- end
-
- -- player shooting
- if (btn(k_confirm) and g_player.shooting == 0) then
-  spawn_bullet(g_player.tilex, g_player.tiley)
- 	g_player.shooting = 20
- end
- 
- if g_player.shooting > 0 then
- 	g_player.shooting-=1
- end
-  
- -- calculate player x and y
- g_player.drawx = lerp(g_player.drawx, 16 * (g_player.tilex-1), 0.3)
- g_player.drawy = lerp(g_player.drawy, 16 * (g_player.tiley-1), 0.3)
+ -- check for collectibles
+ update_objects()
 
  -- camera movement
- if (g_player.drawx-g_camera.xtarget < 16) then
+ if (g_player.x-g_camera.xtarget < 16) then
   g_camera.xtarget -= 16
  end
 
- if (g_player.drawx-g_camera.xtarget > 32) then
+ if (g_player.x-g_camera.xtarget > 32) then
   g_camera.xtarget += 16
  end
 
- g_camera.ytarget = g_player.drawy - (48 + g_camera.offset)
+ g_camera.ytarget = g_player.y - (48 + g_camera.offset)
  if (g_camera.ytarget < 0) then
   g_camera.ytarget = 0
  end
@@ -307,39 +277,12 @@ function update_playing()
  -- lerp towars our target
  g_camera.x = lerp(g_camera.x, g_camera.xtarget, 0.3)
  g_camera.y = lerp(g_camera.y, g_camera.ytarget, 0.3)
-
- -- check for collectibles
- update_objects()
 end
 
 function draw_playing()
  camera(g_camera.x, g_camera.y)
 
- map(0, 0, 0, 0, 128, 64)
-
  draw_objects()
-
- -- shadow
- shadow(g_player)
- -- debug box
- rect(g_player.drawx, g_player.drawy+4, g_player.drawx+15, g_player.drawy+19, 10)
-
- -- muzzle flash
- if (g_player.shooting >= 18) then
-  spr(4, g_player.drawx-6, g_player.drawy-12, 2, 2)
- elseif (g_player.shooting >= 16) then
-  spr(6, g_player.drawx-3, g_player.drawy-12, 2, 2)
- elseif (g_player.shooting >= 14) then
-  circfill(g_player.drawx, g_player.drawy, 3, 8)
- end
-
- -- player
- if g_player.shooting > 0 then
-  sspr(93,0,21,18,g_player.drawx,g_player.drawy-2)
- else
-  sspr(72,0,21,18,g_player.drawx-4,g_player.drawy-2)
- end
-
  draw_particles()
 
  if (g_debug[2]) then
@@ -370,6 +313,7 @@ function update_objects()
 end
 
 function draw_objects()
+ heapsort(g_objects, function(a, b) return a.y - b.y end)
  for obj in all(g_objects) do
   obj.draw(obj)
  end
@@ -433,6 +377,72 @@ function spawn_bullet(tilex, tiley)
  end
 
  add(g_objects, bullet)
+end
+
+function new_player(tilex, tiley)
+ local player = {}
+ player.type = 'player'
+
+ player.tilex = tilex
+ player.tiley = tiley
+ player.x = 16 * (tilex-1)
+ player.y = 16 * (tiley-1)
+ player.shooting = 0
+
+ player.update = function(self)
+  -- player movement
+  if(btnp(k_left) and self.tilex > 1 and not g_walls[self.tilex-1][self.tiley]) then
+   self.tilex -= 1
+  end
+
+  if (btnp(k_right) and self.tilex < g_world_tilewidth and not g_walls[self.tilex+1][self.tiley]) then
+   self.tilex += 1
+  end
+
+  if (btnp(k_up) and self.tiley > 1 and not g_walls[self.tilex][self.tiley-1]) then
+   self.tiley -= 1
+  end
+
+  -- player shooting
+  if (btn(k_confirm) and self.shooting == 0) then
+   spawn_bullet(self.tilex, self.tiley)
+   self.shooting = 20
+  end
+  
+  if self.shooting > 0 then
+   self.shooting-=1
+  end
+   
+  -- calculate player x and y
+  self.x = lerp(self.x, 16 * (self.tilex-1), 0.3)
+  self.y = lerp(self.y, 16 * (self.tiley-1), 0.3)
+ end
+
+ player.draw = function(self)
+  -- shadow
+  shadow(self)
+  -- debug box
+  rect(self.x, self.y+4, self.x+15, self.y+19, 10)
+
+  -- muzzle flash
+  if (self.shooting >= 18) then
+   spr(4, self.x-6, self.y-12, 2, 2)
+  elseif (self.shooting >= 16) then
+   spr(6, self.x-3, self.y-12, 2, 2)
+  elseif (self.shooting >= 14) then
+   circfill(self.x, self.y, 3, 8)
+  end
+
+  -- player
+  if self.shooting > 0 then
+   sspr(93,0,21,18,self.x,self.y-2)
+  else
+   sspr(72,0,21,18,self.x-4,self.y-2)
+  end
+ end
+
+ add(g_objects, player)
+ return player
 end
 
 function new_barrel(tilex, tiley)
@@ -526,6 +536,44 @@ function lerp(from, to, weight)
  return (dist * weight) + from
 end
 
+-- taken from: https://www.lexaloffle.com/bbs/?pid=18374#p
+function heapsort(t, cmp)
+ local n = #t
+ local i, j, temp
+ local lower = flr(n / 2) + 1
+ local upper = n
+ while 1 do
+  if lower > 1 then
+   lower -= 1
+   temp = t[lower]
+  else
+   temp = t[upper]
+   t[upper] = t[1]
+   upper -= 1
+   if upper == 1 then
+    t[1] = temp
+    return
+   end
+  end
+
+  i = lower
+  j = lower * 2
+  while j <= upper do
+   if j < upper and cmp(t[j], t[j+1]) < 0 then
+    j += 1
+   end
+   if cmp(temp, t[j]) < 0 then
+    t[i] = t[j]
+    i = j
+    j += i
+   else
+    j = upper + 1
+   end
+  end
+  t[i] = temp
+ end
+end
+
 function play_sfx(s)
  if (not g_muted) then
   sfx(s)
@@ -533,8 +581,8 @@ function play_sfx(s)
 end
 
 function shadow(o)
- ovalfill(o.drawx, o.drawy+12, o.drawx+15, o.drawy+17, 4)
- ovalfill(o.drawx+1, o.drawy+12, o.drawx+14, o.drawy+17, 2)
+ ovalfill(o.x, o.y+12, o.x+15, o.y+17, 4)
+ ovalfill(o.x+1, o.y+12, o.x+14, o.y+17, 2)
 end
 
 function explode(sprnum, tilex, tiley)
