@@ -12,7 +12,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {true, false, false} -- 1 is CPU usage, 2 is player / wall data, 3 is length of particle
+local g_debug = {false, false, false} -- 1 is CPU usage, 2 is player / wall data, 3 is length of particle
 local g_muted = false
 
 -- magic numbers
@@ -26,7 +26,6 @@ local c_transparent = 9
 -- constants
 local g_game_states = {e_splash=0, e_menu=1, e_loading=2, e_playing=3}
 local g_world_tilewidth = 4
-local g_world_tileheight = 32
 
 -- tracked values
 local g_particles = {}
@@ -219,27 +218,27 @@ local g_player = nil
 local g_walls = {}
 
 function init_playing()
- g_player = new_player(2, 16)
+ g_player = new_player(2, 1)
 
  for i=0,g_world_tilewidth-1 do
   add(g_walls, {})
-  for j=0,g_world_tileheight-1 do
+  for j=16,1,-1 do
    local celx = i*2
-   local cely = j*2 -- we multiply by two because with a tilesize of 16, each tile will take up two 8x8 map cels
+   local cely = (16-j)*2 -- we multiply by two because with a tilesize of 16, each tile will take up two 8x8 map cels
    local sprite = mget(celx, cely)
 
    if (sprite == 32) then -- cacti
-    add(g_walls[i+1], true)
+    g_walls[i+1][j+1] = true
     new_cactus(i+1, j+1)
    elseif (sprite == 34) then -- barrel
-    add(g_walls[i+1], true)
+    g_walls[i+1][j+1] = true
     new_barrel(i+1, j+1)
    else
     if (j < 15 and rnd() < 0.1) then -- spawn alien on empty tile
-     add(g_walls[i+1], true)
+     g_walls[i+1][j+1] = true
      new_alien(i+1, j+1)
     else
-     add(g_walls[i+1], false)
+     g_walls[i+1][j+1] = false
     end
    end
   end
@@ -262,9 +261,6 @@ function update_playing()
  end
 
  g_camera.ytarget = g_player.y - (48 + g_camera.offset)
- if (g_camera.ytarget < 0) then
-  g_camera.ytarget = 0
- end
 
  -- lerp towars our target
  g_camera.x = lerp(g_camera.x, g_camera.xtarget, 0.3)
@@ -278,17 +274,6 @@ function draw_playing()
  draw_particles()
 
  if (g_debug[2]) then
-  for i=0,g_world_tilewidth-1 do
-   for j=0,g_world_tileheight-1 do
-    if (g_walls[i+1][j+1]) then
-     rect(i*16, j*16, i*16+15, j*16+15, 8)
-     print(i..","..j, i*16+2, j*16+6, 8)
-    end
-   end
-  end
- end
-
- if (g_debug[2]) then
   camera()
   print(g_player.tilex..","..g_player.tiley, 0, 0, 7)
  end
@@ -300,14 +285,21 @@ local g_objects = {}
 
 function update_objects()
  for obj in all(g_objects) do
-  obj.update(obj)
+  -- if the object is off camera below the player, delete it
+  if (obj.y > g_camera.y + 64) then
+   del(g_objects, obj)
+  else
+   obj.update(obj)
+  end
  end
 end
 
 function draw_objects()
  heapsort(g_objects, function(a, b) return a.y - b.y end)
  for obj in all(g_objects) do
-  obj.draw(obj)
+  if not (obj.y < g_camera.y - 16) then
+   obj.draw(obj)
+  end
  end
 end
 
@@ -328,7 +320,7 @@ function spawn_bullet(tilex, tiley)
  bullet.type = 'bullet'
 
  bullet.x = -2 + (16 * (tilex-1))
- bullet.y = -4 + (16 * (tiley-1))
+ bullet.y = -4 - (16 * (tiley-1))
  bullet.w = 8
  bullet.h = 8
  bullet.framenum = 0
@@ -378,7 +370,7 @@ function new_player(tilex, tiley)
  player.tilex = tilex
  player.tiley = tiley
  player.x = 16 * (tilex-1)
- player.y = 16 * (tiley-1)
+ player.y = -(16 * (tiley-1))
  player.shooting = 0
 
  player.update = function(self)
@@ -391,8 +383,8 @@ function new_player(tilex, tiley)
    self.tilex += 1
   end
 
-  if (btnp(k_up) and self.tiley > 1 and not g_walls[self.tilex][self.tiley-1]) then
-   self.tiley -= 1
+  if (btnp(k_up) and not g_walls[self.tilex][self.tiley+1]) then
+   self.tiley += 1
   end
 
   -- player shooting
@@ -407,7 +399,7 @@ function new_player(tilex, tiley)
    
   -- calculate player x and y
   self.x = lerp(self.x, 16 * (self.tilex-1), 0.3)
-  self.y = lerp(self.y, 16 * (self.tiley-1), 0.3)
+  self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
  end
 
  player.draw = function(self)
@@ -444,7 +436,7 @@ function new_barrel(tilex, tiley)
  barrel.tiley = tiley
 
  barrel.x = 16 * (tilex-1)
- barrel.y = 16 * (tiley-1)
+ barrel.y = -(16 * (tiley-1))
  barrel.w = 16
  barrel.h = 16
 
@@ -474,7 +466,7 @@ function new_cactus(tilex, tiley)
 
  -- make the y hitbox smaller to have bullets collide with "center" of cactus
  cactus.x = 16 * (tilex-1)
- cactus.y = 16 * (tiley-1)
+ cactus.y = -(16 * (tiley-1))
  cactus.w = 16
  cactus.h = 10
 
@@ -498,9 +490,9 @@ function new_alien(tilex, tiley)
  alien.tiley = tiley
 
  alien.x = 16 * (tilex-1)
- alien.y = 16 * (tiley-1)
+ alien.y = -(16 * (tiley-1))
  alien.w = 16
- alien.h = 10
+ alien.h = 16
 
  alien.update = function(self)
 
@@ -532,6 +524,11 @@ function heapsort(t, cmp)
  local i, j, temp
  local lower = flr(n / 2) + 1
  local upper = n
+
+ if (n < 2) then
+  return
+ end
+
  while 1 do
   if lower > 1 then
    lower -= 1
@@ -594,7 +591,7 @@ function explode(sprnum, tilex, tiley)
    if (pcolor ~= c_transparent) then
     add(g_particles, {
      x=((tilex-1)*16)+dx,
-     y=((tiley-1)*16)+dy,
+     y=(-(tiley-1)*16)+dy,
      r=0,
      dx=2-rnd(4),
      dy=2-rnd(4),
