@@ -383,7 +383,7 @@ function new_player(tilex, tiley)
  player.x = 16 * (tilex-1)
  player.y = 16 * (tiley-1)
  player.shooting = 0
- player.shootdur = 15
+ player.shootdur = 10
 
  player.update = function(self)
   -- player movement
