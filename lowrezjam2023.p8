@@ -12,7 +12,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {true, false, false} -- 1 is CPU usage, 2 is length of object list, 3 is length of particle
+local g_debug = {false, true, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
 local g_muted = false
 
 -- magic numbers
@@ -275,7 +275,7 @@ function draw_playing()
 
  if (g_debug[2]) then
   camera()
-  print(#g_objects, 0, 0, 7)
+  print(tostr(g_player.moving[0]).."-"..tostr(g_player.moving[1]).."-"..tostr(g_player.moving[2]), 0, 0, 7)
  end
 end
 
@@ -408,23 +408,30 @@ function new_player(tilex, tiley)
  player.y = -(16 * (tiley-1))
  player.shooting = 0
  player.shootdur = 20
+ -- a table to tell us if the player is moving in a particular direction
+ -- indexed by the directional buttons, k_left, k_right, and k_up
+ player.moving = {false, false, false}
 
  player.update = function(self)
   -- player movement
   if(btnp(k_left) and self.tilex > 1 and not is_occupied(self.tilex-1, self.tiley)) then
    self.tilex -= 1
+   self.moving[k_left] = true
+   self.moving[k_right] = false
   end
 
   if (btnp(k_right) and self.tilex < g_world_tilewidth and not is_occupied(self.tilex+1, self.tiley)) then
    self.tilex += 1
+   self.moving[k_right] = true
+   self.moving[k_left] = false
   end
 
   if (btnp(k_up) and not is_occupied(self.tilex, self.tiley+1)) then
    self.tiley += 1
+   self.moving[k_up] = true
   end
 
   -- player shooting
-
   if (btn(k_confirm) and self.shooting == 0) then
    play_sfx(3)
    spawn_bullet(self.tilex, self.tiley)
@@ -436,8 +443,23 @@ function new_player(tilex, tiley)
   end
    
   -- calculate player x and y
+  local prev_x, prev_y = self.x, self.y
   self.x = lerp(self.x, 16 * (self.tilex-1), 0.3)
   self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
+
+  -- determine if we are still moving in that direction
+  if (prev_x == self.x) then
+    self.moving[k_left] = false
+    self.moving[k_right] = false
+  end
+
+  if (prev_y == self.y) then
+    self.moving[k_up] = false
+  end
+
+  -- @Jammigans, you can inspect here self.moving[k_left], self.moving[k_right], and self.moving[k_up]
+  -- here to determine which direction the player is moving in. 
+  -- "true" means they are moving that way, "false" means they are not moving that way or are completely still.
  end
 
  player.draw = function(self)
@@ -465,7 +487,6 @@ function new_player(tilex, tiley)
   else
     sspr(72,0,21,18,self.x-4,self.y-2)
   end
-
  end
 
  add(g_objects, player)
