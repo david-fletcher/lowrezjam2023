@@ -408,6 +408,7 @@ function new_player(tilex, tiley)
  player.y = -(16 * (tiley-1))
  player.shooting = 0
  player.shootdur = 20
+ player.cd = 0
  -- a table to tell us if the player is moving in a particular direction
  -- indexed by the directional buttons, k_left, k_right, and k_up
  player.moving = {false, false, false}
@@ -432,14 +433,20 @@ function new_player(tilex, tiley)
   end
 
   -- player shooting
-  if (btn(k_confirm) and self.shooting == 0) then
+  if (btn(k_confirm) and self.cd == 0) then
    play_sfx(3)
    spawn_bullet(self.tilex, self.tiley)
    self.shooting = self.shootdur
+   self.cd = player.shootdur * 1.5
   end
   
   if self.shooting > 0 then
    self.shooting -= 1
+  end
+  
+  -- decrease cool down
+  if self.cd > 0 then
+    self.cd -= 1
   end
    
   -- calculate player x and y
