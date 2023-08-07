@@ -522,6 +522,7 @@ function new_barrel(tilex, tiley)
  end
 
  barrel.draw = function(self)
+  shadow(self)
   spr(34, self.x, self.y, 2, 2)
  end
 
@@ -547,6 +548,7 @@ function new_cactus(tilex, tiley)
  end
 
  cactus.draw = function(self)
+  shadow(self)
   spr(32, self.x, self.y, 2, 2)
  end
 
