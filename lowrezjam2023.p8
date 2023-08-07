@@ -12,7 +12,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {false, true, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
+local g_debug = {false, false, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
 local g_muted = false
 
 -- magic numbers
