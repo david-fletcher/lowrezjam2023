@@ -12,7 +12,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {true, false, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
+local g_debug = {false, false, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
 local g_muted = false
 
 -- magic numbers
@@ -51,7 +51,7 @@ function _init()
  pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
 
  -- TODO: turn back to g_game_states.e_splash before release!
- g_current_state = g_game_states.e_loading
+ g_current_state = g_game_states.e_splash
 end
 
 local s = 8
@@ -184,6 +184,7 @@ function update_menu()
 end
 
 function draw_menu()
+ map(120, 4, 0, 0, 8, 8)
  map(0, 0, 0, 0, 8, 8)
  rectfill(0, 14, 64, 20, 5)
  rectfill(0, 39, 64, 45, 5)
