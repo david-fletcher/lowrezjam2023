@@ -31,7 +31,7 @@ local g_world_tilewidth = 4
 local g_particles = {}
 local g_emitters = {}
 local g_tick = false
-local g_ticklen = 6
+local g_ticklen = 8
 local g_frame = 0
 
 -->8
@@ -412,6 +412,7 @@ function new_player(tilex, tiley)
  -- a table to tell us if the player is moving in a particular direction
  -- indexed by the directional buttons, k_left, k_right, and k_up
  player.moving = {false, false, false}
+ player.flip = false
 
  player.update = function(self)
   -- player movement
@@ -464,9 +465,10 @@ function new_player(tilex, tiley)
     self.moving[k_up] = false
   end
 
-  -- @Jammigans, you can inspect here self.moving[k_left], self.moving[k_right], and self.moving[k_up]
-  -- here to determine which direction the player is moving in. 
-  -- "true" means they are moving that way, "false" means they are not moving that way or are completely still.
+  -- toggle the flip
+  if (g_tick) then
+    self.flip = not self.flip
+  end
  end
 
  player.draw = function(self)
@@ -486,9 +488,8 @@ function new_player(tilex, tiley)
   end
 
   -- player
-  local flp = (time() * 4 % 1) < (1/4)
   if (self.moving[k_up]) then
-    sspr(0,32,16,18,self.x,self.y-4,16,18,flp,false)
+    sspr(0,32,16,18,self.x,self.y-4,16,18,self.flip,false)
   elseif (self.moving[k_right]) then
     sspr(16,32,19,18,self.x,self.y-4,19,18,false,false)
   elseif (self.moving[k_left]) then
