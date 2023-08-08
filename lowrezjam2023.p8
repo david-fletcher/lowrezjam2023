@@ -220,7 +220,7 @@ local g_objects = {}
 
 function init_playing()
  -- player
- g_player = new_player(2, 0)
+ g_player = new_player(6, 0)
 
  -- map regions
  add(g_mapregions, -26)
@@ -326,7 +326,7 @@ function populate_region(yvalue)
  -- repeat this process 3 times for each section of the screen (12 tiles wide)
  for col=0,2 do
   -- select a random column from the available map sections (currently: 2)
-  local region = flr(rnd(2))
+  local region = flr(rnd(15))
 
   -- iterate over each tile in the region and determine what to spawn
   for i=0,3 do
