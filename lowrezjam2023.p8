@@ -500,16 +500,22 @@ function new_player(tilex, tiley)
 
   -- player
   if (self.moving[k_up]) then
-    sspr(0,32,16,18,self.x,self.y-4,16,18,self.flip,false)
+    -- run forward
+    sspr(0,32,16,18,self.x,self.y-3,16,18,self.flip,false)
   elseif (self.moving[k_right]) then
-    sspr(16,32,19,18,self.x,self.y-4,19,18,false,false)
+    -- strafe right
+    sspr(16,32,19,18,self.x-2,self.y-2,19,18,self.flip,false)
   elseif (self.moving[k_left]) then
-    sspr(16,32,19,18,self.x,self.y-4,19,18,true,false)
+    -- strafe left
+    sspr(16,32,19,18,self.x-2,self.y-2,19,18,self.flip,false)
   elseif (self.shooting >= 0.5 * dur) then
+    -- shoot frame 1
     sspr(93,0,15,18,self.x,self.y-2)
   elseif (self.shooting >= 0.1 * dur) then
+    -- shoot frame 2
     sspr(108,0,15,18,self.x,self.y-2)
   else
+    -- idle
     sspr(72,0,21,18,self.x-4,self.y-2)
   end
  end
