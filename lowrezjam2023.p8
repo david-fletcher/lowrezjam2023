@@ -24,12 +24,12 @@ local k_confirm = 4
 local c_transparent = 9
 
 -- constants
-local g_game_states = {e_splash=0, e_menu=1, e_loading=2, e_playing=3}
+local g_game_states = {e_splash=0, e_menu=1, e_loading=2, e_playing=3, e_gameover=4}
 local g_world_tilewidth = 12
 
 -- tracked values
 local g_particles = {}
-local g_emitters = {}
+local g_point_particles = {}
 local g_tick = false
 local g_ticklen = 8
 local g_frame = 0
@@ -38,7 +38,7 @@ local g_frame = 0
 -- lifecycle
 function _init()
  -- enable alt palette in editor
- --poke(0x5f2e, 1)
+ poke(0x5f2e, 1)
 
  -- 64x64 mode!
  poke(0x5f2c, 3)
@@ -72,9 +72,10 @@ function _update60()
   init_playing()
  elseif (g_current_state == g_game_states.e_playing) then
   update_playing()
+ elseif (g_current_state == g_game_states.e_gameover) then
+  update_gameover()
  end
 
- update_emitters()
  update_particles()
 end
 
@@ -87,6 +88,8 @@ function _draw()
   draw_menu()
  elseif (g_current_state == g_game_states.e_playing) then
   draw_playing()
+ elseif (g_current_state == g_game_states.e_gameover) then
+  draw_gameover()
  end
 
  if (g_debug[1]) then
@@ -100,6 +103,8 @@ function _draw()
   rectfill(0, 0, 22, 4, 0)
   print(#g_particles, 0, 0, 7)
  end
+
+ update_point_particles()
 end
 
 -->8
@@ -218,6 +223,8 @@ local g_camera = {
 local g_player = nil
 local g_mapregions = {}
 local g_objects = {}
+local g_timer = 180
+local g_points = 0
 
 function init_playing()
  -- player
@@ -230,10 +237,23 @@ function init_playing()
  -- populate new region
  populate_region(g_mapregions[1])
 
+ -- timer & points
+ g_timer = 180
+ g_points = 0
+
  g_current_state = g_game_states.e_playing
 end
 
 function update_playing()
+ -- update timer
+ if (g_frame % 60 == 0) then
+  g_timer -= 1
+ end
+
+ if (g_timer == 0) then
+  g_current_state = g_game_states.e_gameover
+ end
+
  -- objects first (makes sure we capture latest player movement)
  update_objects()
 
@@ -282,6 +302,29 @@ function draw_playing()
   camera()
   print(tostr(g_player.moving[0]).."-"..tostr(g_player.moving[1]).."-"..tostr(g_player.moving[2]), 0, 0, 7)
  end
+
+ -- timer ui
+ camera()
+ circfill(19, 59, 4, 5)
+ rectfill(0, 55, 19, 63, 5)
+ print(chr(147)..format_num(g_timer), 0, 57, 7)
+
+ -- points ui
+ local point_str = chr(146)..format_num(g_points)
+ local point_x = 44 - ((#point_str-4) * 4)
+ circfill(point_x, 59, 4, 5)
+ rectfill(point_x, 55, 63, 63, 5)
+ print(point_str, point_x, 57, 7)
+end
+
+-->8
+-- game over
+function update_gameover()
+
+end
+
+function draw_gameover()
+ print("gameover!", 0, 0, 7)
 end
 
 -->8
@@ -535,7 +578,7 @@ function new_barrel(tilex, tiley)
  barrel.x = 16 * (tilex-1)
  barrel.y = -(16 * (tiley-1))
  barrel.w = 16
- barrel.h = 16
+ barrel.h = 10
 
  barrel.update = function(self)
  
@@ -609,6 +652,30 @@ function new_alien(tilex, tiley)
  add(g_objects, alien)
 end
 
+function new_cow(tilex, tiley)
+  -- sprite num: 109
+  local cow = {}
+  cow.type = 'collide'
+ 
+  cow.tilex = tilex
+  cow.tiley = tiley
+ 
+  cow.x = (16 * (tilex-1))
+  cow.y = -(16 * (tiley-1))
+  cow.w = 16
+  cow.h = 16
+ 
+  cow.update = function(self)
+ 
+  end
+ 
+  cow.draw = function(self)
+   spr(109, self.x-4, self.y, 3, 2)
+  end
+ 
+  add(g_objects, cow)
+ end
+
 -->8
 -- helper functions
 function lerp(from, to, weight)
@@ -666,12 +733,44 @@ function play_sfx(s)
  end
 end
 
+function format_num(num)
+ local numstr = tostr(num)
+ if (#numstr > 2) then
+  return numstr
+ elseif (#numstr == 2) then
+  return "0"..numstr
+ else
+  return "00"..numstr
+ end
+end
+
+function add_points(num)
+ g_points += num
+ local particle = {}
+ particle.coroutine = cocreate(function() 
+  local y = 57
+  local point_str = "+"..num
+  while (y != 45) do
+   y = lerp(y, 45, 0.2)
+   print(point_str, 64-(#point_str*4), y, 7)
+   yield()
+  end
+ end)
+
+ add(g_point_particles, particle)
+end
+
 function shadow(o)
  ovalfill(o.x, o.y+12, o.x+15, o.y+17, 4)
  ovalfill(o.x+1, o.y+12, o.x+14, o.y+17, 2)
 end
 
 function explode(sprnum, tilex, tiley)
+ -- update points
+ if (sprnum == 34) then -- barrel
+  add_points(50)
+ end
+
  -- spritesheet cel coords
  local celx = sprnum % 16
  local cely = sprnum \ 16
@@ -731,10 +830,12 @@ function clear_particles()
  g_particles = {}
 end
 
-function update_emitters()
- for emitter in all(g_emitters) do
+function update_point_particles()
+ for emitter in all(g_point_particles) do
   if (costatus(emitter.coroutine)) then
    coresume(emitter.coroutine)
+  else
+   del(g_point_particles, emitter)
   end
  end
 end
@@ -941,8 +1042,8 @@ __map__
 0000000030310000000032330000000000000000000000000000303100000000000032333233000000000000000000000000000000003233000032330000000000003233323300000000000000000000000000000000000000000000000000000000000000000000000000003233000000000000000000000000000000000000
 0000000000002021000000000000202100000000202100000000000000000000000022232223000000002223202100000000000000000000000000000000000000000000000000000000000022230000000020210000000022230000000000000000000000000000000020212223000000002223202100000000000000340000
 0000000000003031000000000000303100000000303100000000000000000000000032333233000000003233303100000000000000000000000000000000000000000000000000000000000032330000000030310000000032330000000000000000000000000000000030313233000000003233303100000000000000000000
-0000222300000000000000002223000000000000000022230000000020210000202100000000202100000000000000000000000000000000000000002021000000002021000000000000000000000000000000000000000000002223000000002223000000000000000000000000000000000000000000000000240000000000
-0000323300000000000000003233000000000000000032330000000030310000303100000000303100000000000000000000000000000000000000003031000000003031000000000000000000000000000000000000000000003233000000003233000000000000000000000000000000000000000000000000000000000000
+0000222300000000000000000000000000000000000022230000000020210000202100000000202100000000000000000000000000000000000000002021000000002021000000000000000000000000000000000000000000002223000000002223000000000000000000000000000000000000000000000000240000000000
+0000323300000000000000000000000000000000000032330000000030310000303100000000303100000000000000000000000000000000000000003031000000003031000000000000000000000000000000000000000000003233000000003233000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000222320210000000000000000000000000000000000000000000000000000000000000000000000000000222300000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000323330310000000000000000000000000000000000000000000000000000000000000000000000000000323300000000000000000000000000000000000000000000000000000000000010110000
 0000202100002223000000000000000000002223202100000000202100000000000022230000000000000000222300000000000000000000000022230000000022230000000022230000202100000000000000000000000000000000000000000000000020210000000000000000000000000000000000000000000000000000
