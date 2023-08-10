@@ -460,6 +460,7 @@ function new_player(tilex, tiley)
  player.shooting = 0
  player.shootdur = 20
  player.cd = 0
+ player.strafe_cd = 0
  -- a table to tell us if the player is moving in a particular direction
  -- indexed by the directional buttons, k_left, k_right, and k_up
  player.moving = {false, false, false}
@@ -467,18 +468,22 @@ function new_player(tilex, tiley)
 
  player.update = function(self)
   -- player movement
-  if(btnp(k_left) and self.tilex > 1 and not is_occupied(self.tilex-1, self.tiley)) then
-   play_sfx(4+flr(rnd(3)))
+  if(btnp(k_left) and self.tilex > 1 and not is_occupied(self.tilex-1, self.tiley)) and self.strafe_cd <= 0 then
+   -- strafe left
+   play_sfx(7)
    self.tilex -= 1
    self.moving[k_left] = true
    self.moving[k_right] = false
+   self.strafe_cd = 20
   end
 
-  if (btnp(k_right) and self.tilex < g_world_tilewidth and not is_occupied(self.tilex+1, self.tiley)) then
-   play_sfx(4+flr(rnd(3)))
+  if (btnp(k_right) and self.tilex < g_world_tilewidth and not is_occupied(self.tilex+1, self.tiley)) and self.strafe_cd <= 0 then
+   -- strafe right
+   play_sfx(7)
    self.tilex += 1
    self.moving[k_right] = true
    self.moving[k_left] = false
+   self.strafe_cd = 20
   end
 
   if (btnp(k_up) and not is_occupied(self.tilex, self.tiley+1)) then
@@ -499,9 +504,12 @@ function new_player(tilex, tiley)
    self.shooting -= 1
   end
   
-  -- decrease cool down
+  -- decrease shoot and strafe cool downs
   if self.cd > 0 then
     self.cd -= 1
+  end
+  if self.strafe_cd > 0 then
+    self.strafe_cd -= 1
   end
    
   -- calculate player x and y
@@ -547,10 +555,10 @@ function new_player(tilex, tiley)
     sspr(0,32,16,18,self.x,self.y-3,16,18,self.flip,false)
   elseif (self.moving[k_right]) then
     -- strafe right
-    sspr(16,32,19,18,self.x-2,self.y-2,19,18,self.flip,false)
+    sspr(16,32,19,18,self.x-2,self.y-2,19,18)
   elseif (self.moving[k_left]) then
     -- strafe left
-    sspr(16,32,19,18,self.x-2,self.y-2,19,18,self.flip,false)
+    sspr(16,32,19,18,self.x-2,self.y-2,19,18,true)
   elseif (self.shooting >= 0.5 * dur) then
     -- shoot frame 1
     sspr(93,0,15,18,self.x,self.y-2)
@@ -1076,5 +1084,5 @@ __sfx__
 000200000e020170111f0311a0050b0010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
 000200000c02017011240311a005016010360101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
 000200000c0101d021240111a005016010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
-000200000c00017001280011a0050b0010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
+0004000001610006311102102605026010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
 00020000037000f6001b700007000c603157030860301703017030270302703007030070300703007030070300703007030070300703007030070300703007030070300703007030070300703007030070300703
