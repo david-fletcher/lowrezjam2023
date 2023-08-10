@@ -305,16 +305,16 @@ function draw_playing()
 
  -- timer ui
  camera()
- circfill(19, 59, 4, 5)
- rectfill(0, 55, 19, 63, 5)
- print(chr(147)..format_num(g_timer), 0, 57, 7)
+ --circfill(19, 59, 4, 5)
+ --rectfill(0, 55, 19, 63, 5)
+ --print(chr(147)..format_num(g_timer), 0, 57, 7)
 
  -- points ui
  local point_str = chr(146)..format_num(g_points)
  local point_x = 44 - ((#point_str-4) * 4)
- circfill(point_x, 59, 4, 5)
- rectfill(point_x, 55, 63, 63, 5)
- print(point_str, point_x, 57, 7)
+ --circfill(point_x, 59, 4, 5)
+ --rectfill(point_x, 55, 63, 63, 5)
+ --print(point_str, point_x, 57, 7)
 end
 
 -->8
@@ -474,7 +474,7 @@ function new_player(tilex, tiley)
    self.tilex -= 1
    self.moving[k_left] = true
    self.moving[k_right] = false
-   self.strafe_cd = 20
+   self.strafe_cd = 17
   end
 
   if (btnp(k_right) and self.tilex < g_world_tilewidth and not is_occupied(self.tilex+1, self.tiley)) and self.strafe_cd <= 0 then
@@ -483,7 +483,7 @@ function new_player(tilex, tiley)
    self.tilex += 1
    self.moving[k_right] = true
    self.moving[k_left] = false
-   self.strafe_cd = 20
+   self.strafe_cd = 17
   end
 
   if (btnp(k_up) and not is_occupied(self.tilex, self.tiley+1)) then
@@ -555,10 +555,10 @@ function new_player(tilex, tiley)
     sspr(0,32,16,18,self.x,self.y-3,16,18,self.flip,false)
   elseif (self.moving[k_right]) then
     -- strafe right
-    sspr(16,32,19,18,self.x-2,self.y-2,19,18)
+    sspr(16,32,19,18,self.x-2,self.y,19,18)
   elseif (self.moving[k_left]) then
     -- strafe left
-    sspr(16,32,19,18,self.x-2,self.y-2,19,18,true)
+    sspr(16,32,19,18,self.x-2,self.y,19,18,true)
   elseif (self.shooting >= 0.5 * dur) then
     -- shoot frame 1
     sspr(93,0,15,18,self.x,self.y-2)
@@ -1084,5 +1084,5 @@ __sfx__
 000200000e020170111f0311a0050b0010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
 000200000c02017011240311a005016010360101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
 000200000c0101d021240111a005016010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
-0004000001610006311102102605026010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
+0004000013610006312a02102605026010160101601016010c0010c0010c0010d0010d0010d0010e0010f00111001130010000100001000010000100001000010000100001000010000100001000010000100001
 00020000037000f6001b700007000c603157030860301703017030270302703007030070300703007030070300703007030070300703007030070300703007030070300703007030070300703007030070300703
