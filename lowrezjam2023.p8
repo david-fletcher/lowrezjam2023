@@ -225,6 +225,7 @@ local g_mapregions = {}
 local g_objects = {}
 local g_timer = 180
 local g_points = 0
+local g_ammo = 6
 
 function init_playing()
  -- player
@@ -304,17 +305,30 @@ function draw_playing()
  end
 
  -- timer ui
+ local timer_pct = flr((g_timer / 180) * 59)
+ local color = 7
+ if (timer_pct < 10) then
+  color = 8
+ end
  camera()
- circfill(19, 59, 4, 5)
- rectfill(0, 55, 19, 63, 5)
- print(chr(147)..format_num(g_timer), 0, 57, 7)
+ rectfill(1, 1, 3, 62, 5)
+ line(2, 2, 2, 61, 2)
+ line(2, 61-timer_pct, 2, 61, color)
 
  -- points ui
- local point_str = chr(146)..format_num(g_points)
- local point_x = 44 - ((#point_str-4) * 4)
- circfill(point_x, 59, 4, 5)
- rectfill(point_x, 55, 63, 63, 5)
- print(point_str, point_x, 57, 7)
+ local point_str = format_num(g_points)
+ rectfill(50, 1, 62, 7, 5)
+ print(point_str, 51, 2, 10)
+
+ -- ammo ui
+ rectfill(60, 50, 62, 62, 5)
+ for i=0,5 do
+  if (i > g_ammo-1) then
+    pset(61, 61-(i*2), 2)
+  else
+    pset(61, 61-(i*2), 10)
+  end
+ end
 end
 
 -->8
@@ -493,11 +507,12 @@ function new_player(tilex, tiley)
   end
 
   -- player shooting
-  if (btn(k_confirm) and self.cd == 0) then
+  if (btn(k_confirm) and self.cd == 0 and g_ammo > 0) then
    play_sfx(3)
    spawn_bullet(self.tilex, self.tiley)
    self.shooting = self.shootdur
    self.cd = player.shootdur * 1.5
+   g_ammo -= 1
   end
   
   if self.shooting > 0 then
@@ -756,11 +771,11 @@ function add_points(num)
  g_points += num
  local particle = {}
  particle.coroutine = cocreate(function() 
-  local y = 57
+  local y = 2
   local point_str = "+"..num
-  while (y != 45) do
-   y = lerp(y, 45, 0.2)
-   print(point_str, 64-(#point_str*4), y, 7)
+  while (y != 10) do
+   y = lerp(y, 10, 0.2)
+   print(point_str, 63-(#point_str*4), y, 10)
    yield()
   end
  end)
@@ -776,7 +791,7 @@ end
 function explode(sprnum, tilex, tiley)
  -- update points
  if (sprnum == 34) then -- barrel
-  add_points(50)
+  add_points(2)
  end
 
  -- spritesheet cel coords
