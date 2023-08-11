@@ -51,7 +51,7 @@ function _init()
  pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
 
  -- TODO: turn back to g_game_states.e_splash before release!
- g_current_state = g_game_states.e_splash
+ g_current_state = g_game_states.e_loading
 end
 
 local s = 8
@@ -357,12 +357,13 @@ end
 local draw_comparator = function(a, b)
  local result = a.y - b.y
  if (result == 0) then
-  -- draw the player on top of nearby objects
-  if (a.type == 'player') then
-   return 1
-  elseif (b.type == 'player') then
-   return -1
-  end
+  -- draw the wide objects on top of nearby objects
+  result = a.sortprio - b.sortprio
+ end
+
+ if (result == 0) then
+  -- draw right x before left x
+  result = a.x - b.x
  end
  return result
 end
@@ -388,7 +389,7 @@ function populate_region(yvalue)
 
   -- iterate over each tile in the region and determine what to spawn
   for i=0,3 do
-    for j=15,0,-1 do
+   for j=15,0,-1 do
     local celx = i*2 + (region*8)
     local cely = 32 - (j*2)
     local sprite = mget(celx, cely)
@@ -396,13 +397,20 @@ function populate_region(yvalue)
     local tiley = j - (y \ 16)
 
     if (sprite == 32) then
-      new_cactus(col*4 + i+1, tiley)
+     new_cactus(col*4 + i+1, tiley)
     elseif (sprite == 34) then
-      new_barrel(col*4 + i+1, tiley)
+     new_barrel(col*4 + i+1, tiley)
+    else
+     local percentage = rnd()
+     if (percentage < 0.03) then
+      new_alien(col*4 + i+1, tiley)
+     elseif (percentage >= 0.03 and percentage < 0.06) then
+      new_cow(col*4 + i+1, tiley)
+     end
     end
-    end
+   end
   end
-  end
+ end
 end
 
 function check_for_collision(type, x, y, w, h)
@@ -417,14 +425,18 @@ function check_for_collision(type, x, y, w, h)
  return nil
 end
 
+-- return 0 for false, 1 for true, and 2 for cow
 function is_occupied(tilex, tiley)
  for obj in all(g_objects) do
   if (obj.tilex == tilex and obj.tiley == tiley) then
-   return true
+   if (obj.sortprio == 1) then -- only cows have sortprio 1
+    return 2, obj
+   end
+   return 1, obj
   end
  end
 
- return false
+ return 0, nil
 end
 
 function spawn_bullet(tilex, tiley)
@@ -466,6 +478,7 @@ end
 function new_player(tilex, tiley)
  local player = {}
  player.type = 'player'
+ player.sortprio = 2
 
  player.tilex = tilex
  player.tiley = tiley
@@ -482,28 +495,49 @@ function new_player(tilex, tiley)
 
  player.update = function(self)
   -- player movement
-  if(btnp(k_left) and self.tilex > 1 and not is_occupied(self.tilex-1, self.tiley)) and self.strafe_cd <= 0 then
+  -- check left, check right, check up
+  local tileleft, objleft = is_occupied(self.tilex-1, self.tiley)
+  local tileright, objright = is_occupied(self.tilex+1, self.tiley)
+  local tileup, objup =  is_occupied(self.tilex, self.tiley+1)
+
+  if(btnp(k_left) and self.tilex > 1 and tileleft != 1 and self.strafe_cd <= 0) then
    -- strafe left
    play_sfx(7)
    self.tilex -= 1
    self.moving[k_left] = true
    self.moving[k_right] = false
    self.strafe_cd = 17
+
+   -- check for cow
+   if (tileleft == 2) then
+    objleft.rescue(objleft)
+   end
   end
 
-  if (btnp(k_right) and self.tilex < g_world_tilewidth and not is_occupied(self.tilex+1, self.tiley)) and self.strafe_cd <= 0 then
+  if (btnp(k_right) and self.tilex < g_world_tilewidth and tileright != 1 and self.strafe_cd <= 0) then
    -- strafe right
    play_sfx(7)
    self.tilex += 1
    self.moving[k_right] = true
    self.moving[k_left] = false
    self.strafe_cd = 17
+
+   -- check for cow
+   if (tileright == 2) then
+    objright.rescue(objright)
+   end
   end
 
-  if (btnp(k_up) and not is_occupied(self.tilex, self.tiley+1)) and self.strafe_cd <= 0 then
+  if (btnp(k_up) and tileup != 1 and self.strafe_cd <= 0) then
+   -- move up
    play_sfx(4+flr(rnd(3)))
    self.tiley += 1
    self.moving[k_up] = true
+
+   -- check for cow
+   if (tileup == 2) then
+    objup.rescue(objup)
+   end
   end
 
   -- player shooting
@@ -594,6 +628,7 @@ function new_barrel(tilex, tiley)
  -- sprite num: 34
  local barrel = {}
  barrel.type = 'collide'
+ barrel.sortprio = 0
 
  barrel.tilex = tilex
  barrel.tiley = tiley
@@ -624,6 +659,7 @@ function new_cactus(tilex, tiley)
  -- sprite num: 32
  local cactus = {}
  cactus.type = 'collide'
+ cactus.sortprio = 0
 
  cactus.tilex = tilex
  cactus.tiley = tiley
@@ -650,6 +686,7 @@ function new_alien(tilex, tiley)
  -- sprite num: 38
  local alien = {}
  alien.type = 'collide'
+ alien.sortprio = 0
 
  alien.tilex = tilex
  alien.tiley = tiley
@@ -659,8 +696,46 @@ function new_alien(tilex, tiley)
  alien.w = 16
  alien.h = 16
 
- alien.update = function(self)
+ alien.decision_timer = 0
 
+ alien.update = function(self)
+  if (self.decision_timer <= 0) then
+   -- 20% chance to take an action
+   if (rnd() < 0.05) then
+    self.decision_timer = 60
+
+    local dir = flr(rnd(4)) -- 0 - 3 only integers
+    if (dir == k_left and self.tilex > 1) then
+     local tile, _ = is_occupied(self.tilex-1, self.tiley)
+     if (tile == 0) then -- empty tile
+      self.tilex -= 1
+     end
+
+    elseif (dir == k_right and self.tilex < g_world_tilewidth) then
+     local tile, _ = is_occupied(self.tilex+1, self.tiley)
+     if (tile == 0) then -- empty tile
+      self.tilex += 1
+     end
+
+    elseif (dir == k_up) then
+     local tile, _ = is_occupied(self.tilex, self.tiley+1)
+     if (tile == 0) then -- empty tile
+      self.tiley += 1
+     end
+
+    elseif (dir == k_down) then
+     local tile, _ = is_occupied(self.tilex, self.tiley-1)
+     if (tile == 0) then -- empty tile
+      self.tiley -= 1
+     end
+    end
+   end
+  end
+
+  self.x = lerp(self.x, (16 * (self.tilex-1)), 0.3)
+  self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
+
+  self.decision_timer -= 1
  end
 
  alien.explode = function(self)
@@ -669,6 +744,7 @@ function new_alien(tilex, tiley)
  end
 
  alien.draw = function(self)
+  shadow(self)
   spr(38, self.x, self.y, 2, 2)
  end
 
@@ -679,6 +755,7 @@ function new_cow(tilex, tiley)
   -- sprite num: 109
   local cow = {}
   cow.type = 'collide'
+  cow.sortprio = 1
  
   cow.tilex = tilex
   cow.tiley = tiley
@@ -687,13 +764,65 @@ function new_cow(tilex, tiley)
   cow.y = -(16 * (tiley-1))
   cow.w = 16
   cow.h = 16
+
+  cow.decision_timer = 0
+  cow.flip = false
  
+  -- mooooovement
   cow.update = function(self)
- 
+   if (self.decision_timer <= 0) then
+    -- 20% chance to take an action
+    if (rnd() < 0.05) then
+     self.decision_timer = 60
+
+     local dir = flr(rnd(4)) -- 0 - 3 only integers
+     if (dir == k_left and self.tilex > 1) then
+      local tile, _ = is_occupied(self.tilex-1, self.tiley)
+      if (tile == 0) then -- empty tile
+       self.tilex -= 1
+       self.flip = false
+      end
+
+     elseif (dir == k_right and self.tilex < g_world_tilewidth) then
+      local tile, _ = is_occupied(self.tilex+1, self.tiley)
+      if (tile == 0) then -- empty tile
+       self.tilex += 1
+       self.flip = true
+      end
+
+     elseif (dir == k_up) then
+      local tile, _ = is_occupied(self.tilex, self.tiley+1)
+      if (tile == 0) then -- empty tile
+       self.tiley += 1
+      end
+
+     elseif (dir == k_down) then
+      local tile, _ = is_occupied(self.tilex, self.tiley-1)
+      if (tile == 0) then -- empty tile
+       self.tiley -= 1
+      end
+     end
+    end
+   end
+
+   self.x = lerp(self.x, (16 * (self.tilex-1)), 0.3)
+   self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
+
+   self.decision_timer -= 1
   end
- 
+
+  cow.rescue = function(self)
+   add_points(10, cow.tilex, cow.tiley)
+   del(g_objects, self)
+  end
+
   cow.draw = function(self)
-   spr(109, self.x-4, self.y, 3, 2)
+   local offset = 4
+   if (self.flip) then
+    offset = -4
+   end
+   shadow({x=self.x+offset, y=self.y})
+   spr(109, self.x-4, self.y, 3, 2, self.flip)
   end
  
   add(g_objects, cow)
@@ -782,7 +911,10 @@ function add_points(num, tilex, tiley)
   local point_str = "+"..num
   while (y != 15) do
    y = lerp(y, 15, 0.2)
-   print(point_str, screenx + (#point_str*2), screeny - y + 8, 10)
+   local actualx = screenx + (#point_str*2)
+   local actualy = screeny - y + 8
+   rectfill(actualx-1, actualy-1, actualx+(#point_str*4)-1, actualy+5, 5)
+   print(point_str, actualx, actualy, 10)
    yield()
   end
  end)
@@ -799,6 +931,8 @@ function explode(sprnum, tilex, tiley)
  -- update points
  if (sprnum == 34) then -- barrel
   add_points(2, tilex, tiley)
+ elseif (sprnum == 38) then -- alien
+  add_points(5, tilex, tiley)
  end
 
  -- spritesheet cel coords
