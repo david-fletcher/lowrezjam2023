@@ -51,7 +51,7 @@ function _init()
  pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
 
  -- TODO: turn back to g_game_states.e_splash before release!
- g_current_state = g_game_states.e_loading
+ g_current_state = g_game_states.e_splash
 end
 
 local s = 8
@@ -473,7 +473,7 @@ function new_player(tilex, tiley)
  player.y = -(16 * (tiley-1))
  player.shooting = 0
  player.shootdur = 20
- player.cd = 0
+ player.cd = 5
  player.strafe_cd = 0
  -- a table to tell us if the player is moving in a particular direction
  -- indexed by the directional buttons, k_left, k_right, and k_up
