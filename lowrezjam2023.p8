@@ -231,6 +231,9 @@ function init_playing()
  -- player
  g_player = new_player(6, 0)
 
+ -- hardcoded alient for testing reasons
+ new_alien(5, 1)
+
  -- map regions
  add(g_mapregions, -26)
  add(g_mapregions, -154)
@@ -696,46 +699,87 @@ function new_alien(tilex, tiley)
  alien.w = 16
  alien.h = 16
 
+-- a table to tell us if the player is moving in a particular direction
+ -- indexed by the directional buttons, k_left, k_right, k_up, and k_down
+ alien.state = "spawning"
+ alien.moving = {false, false, false, false}
  alien.decision_timer = 0
+ alien.spawn_timer = 60
 
  alien.update = function(self)
-  if (self.decision_timer <= 0) then
-   -- 20% chance to take an action
-   if (rnd() < 0.05) then
-    self.decision_timer = 60
+  -- if we're not spawning, then do this
+  if (self.state ~= "spawning") then
+   if (self.decision_timer <= 0) then
+    -- 5% chance to take an action
+    if (rnd() < 0.05) then
+     self.decision_timer = 60
 
-    local dir = flr(rnd(4)) -- 0 - 3 only integers
-    if (dir == k_left and self.tilex > 1) then
-     local tile, _ = is_occupied(self.tilex-1, self.tiley)
-     if (tile == 0) then -- empty tile
-      self.tilex -= 1
-     end
+     local dir = flr(rnd(4)) -- 0 - 3 only integers
+     if (dir == k_left and self.tilex > 1) then
+      local tile, _ = is_occupied(self.tilex-1, self.tiley)
+      if (tile == 0) then -- empty tile
+       self.tilex -= 1
+       self.moving[k_left] = true
+       self.state = "moving"
+      end
 
-    elseif (dir == k_right and self.tilex < g_world_tilewidth) then
-     local tile, _ = is_occupied(self.tilex+1, self.tiley)
-     if (tile == 0) then -- empty tile
-      self.tilex += 1
-     end
+     elseif (dir == k_right and self.tilex < g_world_tilewidth) then
+      local tile, _ = is_occupied(self.tilex+1, self.tiley)
+      if (tile == 0) then -- empty tile
+       self.tilex += 1
+       self.moving[k_right] = true
+       self.state = "moving"
+      end
 
-    elseif (dir == k_up) then
-     local tile, _ = is_occupied(self.tilex, self.tiley+1)
-     if (tile == 0) then -- empty tile
-      self.tiley += 1
-     end
+     elseif (dir == k_up) then
+      local tile, _ = is_occupied(self.tilex, self.tiley+1)
+      if (tile == 0) then -- empty tile
+       self.tiley += 1
+       self.moving[k_up] = true
+       self.state = "moving"
+      end
 
-    elseif (dir == k_down) then
-     local tile, _ = is_occupied(self.tilex, self.tiley-1)
-     if (tile == 0) then -- empty tile
-      self.tiley -= 1
+     elseif (dir == k_down) then
+      local tile, _ = is_occupied(self.tilex, self.tiley-1)
+      if (tile == 0) then -- empty tile
+       self.tiley -= 1
+       self.moving[k_down] = true
+       self.state = "moving"
+      end
      end
     end
    end
+
+   local prev_x, prev_y = self.x, self.y
+   self.x = lerp(self.x, (16 * (self.tilex-1)), 0.3)
+   self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
+
+   if (prev_x == self.x and prev_y == self.y) then
+    self.moving = {false, false, false, false}
+    self.state = "idle"
+   end
+
+   self.decision_timer -= 1
   end
 
-  self.x = lerp(self.x, (16 * (self.tilex-1)), 0.3)
-  self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
+  -- STATE MACHINE LOGIC
+  -- if we are spawning...
+  if (self.state == "spawning") then
+   self.spawn_timer -= 1
 
-  self.decision_timer -= 1
+   if (self.spawn_timer <= 0) then
+    self.state = "idle"
+   end
+
+   -- logic
+
+  elseif (self.state == "idle") then
+   -- logic
+
+  elseif (self.state == "moving") then
+   -- logic
+
+  end
  end
 
  alien.explode = function(self)
@@ -744,8 +788,18 @@ function new_alien(tilex, tiley)
  end
 
  alien.draw = function(self)
-  shadow(self)
-  spr(38, self.x, self.y, 2, 2)
+  if (self.state == "spawning") then
+   -- logic
+   spr(38, self.x, self.y, 2, 2)
+  elseif (self.state == "idle") then
+   -- logic
+   shadow(self)
+   spr(38, self.x, self.y, 2, 2)
+  elseif (self.state == "moving") then
+   -- logic
+   shadow(self)
+   spr(38, self.x, self.y, 2, 2)
+  end
  end
 
  add(g_objects, alien)
