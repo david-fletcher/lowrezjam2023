@@ -704,8 +704,8 @@ function new_alien(tilex, tiley)
  alien.state = "warning"
  alien.moving = {false, false, false, false}
  alien.decision_timer = 120
- alien.warning_timer = 60
- alien.spawn_dur = 162
+ alien.warning_timer = 120
+ alien.spawn_dur = 78
  alien.spawn_timer = alien.spawn_dur
 
  alien.update = function(self)
@@ -795,38 +795,32 @@ function new_alien(tilex, tiley)
  end
  
  alien.draw = function(self)
-  local spawn_progress = self.spawn_timer / self.spawn_dur
-  if (self.state == "spawning") then
-   -- logic
-
-   if spawn_progress < 0.7 then
-      shadow(self)
-   end
-
-   -- warning
-   if  spawn_progress < 1 and spawn_progress > 0.52 then
+  if (self.state == "warning") then
+    -- warning
     print("!", self.x+6, self.y+12, 8)
     print("!", self.x+7, self.y+12, 8)
-   end
-
+  elseif (self.state == "spawning") then
+   -- logic
+   local spawn_progress = self.spawn_timer / self.spawn_dur
+   shadow(self)
    -- spawn animation
-   if spawn_progress < 0.52 and spawn_progress > 0.50 then
+   if spawn_progress <= 1 and spawn_progress > 0.962 then
     -- smear 1
     sspr(48, 16, 16, 16, self.x, self.y-40, 16, 40)
    end
-   if spawn_progress < 0.50 and spawn_progress > 0.48 then
+   if spawn_progress < 0.962 and spawn_progress > 0.924 then
     -- smear 2
     sspr(48, 16, 16, 16, self.x, self.y-16, 16, 32)
    end
-   if spawn_progress < 0.48 and spawn_progress > 0.44 then
+   if spawn_progress < 0.924 and spawn_progress > 0.848 then
     -- impact
     spr(70, self.x, self.y+2, 2, 2)
    end
-   if spawn_progress < 0.44 and spawn_progress > 0.40 then
+   if spawn_progress < 0.848 and spawn_progress > 0.772 then
     -- transition
     spr(72, self.x, self.y, 2, 2)
    end
-   if spawn_progress < 0.4 and spawn_progress > 0 then
+   if spawn_progress < 0.772 and spawn_progress > 0 then
     -- roar
     spr(74, self.x, self.y-1, 2, 2)
    end
