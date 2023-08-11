@@ -701,15 +701,16 @@ function new_alien(tilex, tiley)
 
 -- a table to tell us if the player is moving in a particular direction
  -- indexed by the directional buttons, k_left, k_right, k_up, and k_down
- alien.state = "spawning"
+ alien.state = "warning"
  alien.moving = {false, false, false, false}
  alien.decision_timer = 120
+ alien.warning_timer = 60
  alien.spawn_dur = 162
  alien.spawn_timer = alien.spawn_dur
 
  alien.update = function(self)
-  -- if we're not spawning, then do this
-  if (self.state ~= "spawning") then
+  -- if we're not warning, and not spawning, then do this
+  if (self.state ~= "warning" and self.state ~= "spawning") then
    if (self.decision_timer <= 0) then
     -- 5% chance to take an action
     if (rnd() < 0.05) then
@@ -765,7 +766,12 @@ function new_alien(tilex, tiley)
 
   -- STATE MACHINE LOGIC
   -- if we are spawning...
-  if (self.state == "spawning") then
+  if (self.state == "warning") then
+   self.warning_timer -= 1
+   if (self.warning_timer <= 0) then
+    self.state = "spawning"
+   end
+  elseif (self.state == "spawning") then
    self.spawn_timer -= 1
 
    if (self.spawn_timer <= 0) then
