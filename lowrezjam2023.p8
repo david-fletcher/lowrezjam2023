@@ -559,7 +559,7 @@ function new_player(tilex, tiley)
   if (self.shooting >= 0.75 * dur) then
    spr(4, self.x-6, self.y-11, 2, 2)
   elseif (self.shooting >= 0.65 * dur) then
-   spr(6, self.x-3, self.y-12, 2, 2)
+   sspr(48,0,9,16,self.x-3,self.y-12,9,16)
   elseif (self.shooting >= 0.5 * dur) then
    circfill(self.x+1, self.y, 3, 8)
   end
