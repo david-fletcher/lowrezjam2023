@@ -767,15 +767,22 @@ function format_num(num)
  end
 end
 
-function add_points(num)
+function add_points(num, tilex, tiley)
+ -- convert to screen coordinates
+ local screenx = ((tilex-1)*16) - g_camera.x
+ local screeny = -((tiley-1)*16) - g_camera.y
+
+ -- add to point tracking
  g_points += num
+
+ -- point particle setup
  local particle = {}
  particle.coroutine = cocreate(function() 
   local y = 2
   local point_str = "+"..num
-  while (y != 10) do
-   y = lerp(y, 10, 0.2)
-   print(point_str, 63-(#point_str*4), y, 10)
+  while (y != 15) do
+   y = lerp(y, 15, 0.2)
+   print(point_str, screenx + (#point_str*2), screeny - y + 8, 10)
    yield()
   end
  end)
@@ -791,7 +798,7 @@ end
 function explode(sprnum, tilex, tiley)
  -- update points
  if (sprnum == 34) then -- barrel
-  add_points(2)
+  add_points(2, tilex, tiley)
  end
 
  -- spritesheet cel coords
