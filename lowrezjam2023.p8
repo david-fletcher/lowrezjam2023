@@ -1107,11 +1107,12 @@ function add_points(num, tilex, tiley)
  -- point particle setup
  local particle = {}
  particle.coroutine = cocreate(function() 
+  local x_offset = -4
   local y = 2
   local point_str = "+"..num
   while (y != 15) do
    y = lerp(y, 15, 0.2)
-   local actualx = screenx + (#point_str*2)
+   local actualx = screenx + (#point_str*2) + x_offset
    local actualy = screeny - y + 8
    rectfill(actualx-1, actualy-1, actualx+(#point_str*4)-1, actualy+5, 5)
    print(point_str, actualx, actualy, 10)
