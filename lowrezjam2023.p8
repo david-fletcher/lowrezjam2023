@@ -727,9 +727,9 @@ function new_alien(tilex, tiley)
  -- indexed by the directional buttons, k_left, k_right, k_up, and k_down
  alien.state = "warning"
  alien.moving = {false, false, false, false}
- alien.decision_timer = 120
- alien.warning_timer = 150
- alien.spawn_dur = 78
+ alien.decision_timer = 90
+ alien.warning_timer = 60
+ alien.spawn_dur = 72 --78
  alien.spawn_timer = alien.spawn_dur
 
  alien.update = function(self)
