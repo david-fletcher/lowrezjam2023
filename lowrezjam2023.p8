@@ -33,12 +33,14 @@ local g_point_particles = {}
 local g_tick = false
 local g_ticklen = 8
 local g_frame = 0
+local g_shake_frame = 0
+local g_shake = { x=0, y=0 }
 
 -->8
 -- lifecycle
 function _init()
  -- enable alt palette in editor
- --poke(0x5f2e, 1)
+ poke(0x5f2e, 1)
 
  -- 64x64 mode!
  poke(0x5f2c, 3)
@@ -52,8 +54,6 @@ function _init()
 
  -- TODO: turn back to g_game_states.e_splash before release!
  g_current_state = g_game_states.e_loading
-
- shake = 0
 end
 
 local s = 8
@@ -228,13 +228,11 @@ local g_objects = {}
 local g_timer = 180
 local g_points = 0
 local g_ammo = 6
+local g_aliens = 0
 
 function init_playing()
  -- player
  g_player = new_player(6, 0)
-
- -- hardcoded alient for testing reasons
- new_alien(5, 1)
 
  -- map regions
  add(g_mapregions, -26)
@@ -251,7 +249,6 @@ function init_playing()
 end
 
 function update_playing()
-  
  -- update timer
  if (g_frame % 60 == 0) then
   g_timer -= 1
@@ -264,6 +261,9 @@ function update_playing()
  -- objects first (makes sure we capture latest player movement)
  update_objects()
 
+ -- attempt to spawn in a new alien
+ spawn_alien()
+
  -- camera movement
  if (g_player.x-g_camera.xtarget < 16) then
   g_camera.xtarget -= 16
@@ -275,7 +275,7 @@ function update_playing()
 
  g_camera.ytarget = g_player.y - (48 + g_camera.offset)
 
- -- lerp towars our target
+ -- lerp towards our target
  g_camera.x = lerp(g_camera.x, g_camera.xtarget, 0.3)
  g_camera.y = lerp(g_camera.y, g_camera.ytarget, 0.3)
 
@@ -289,10 +289,13 @@ function update_playing()
  if (g_mapregions[2] > g_camera.y + 64) then
   g_mapregions[2] -= 240
  end
+
+ -- update screenshake
+ shake_screen()
 end
 
 function draw_playing()
- camera(g_camera.x, g_camera.y)
+ camera(g_camera.x+g_shake.x, g_camera.y+g_shake.y)
  
  -- draw the cracks in the ground pattern - last column in map data
  map(120, 0,  0,   g_mapregions[1], 8, 16)
@@ -311,12 +314,13 @@ function draw_playing()
  end
 
  -- timer ui
+ camera()
+
  local timer_pct = flr((g_timer / 180) * 59)
  local color = 7
  if (timer_pct < 10) then
   color = 8
  end
- camera()
  rectfill(1, 1, 3, 62, 5)
  line(2, 2, 2, 61, 2)
  line(2, 61-timer_pct, 2, 61, color)
@@ -335,7 +339,6 @@ function draw_playing()
     pset(61, 61-(i*2), 10)
   end
  end
- shake_screen()
 end
 
 -->8
@@ -354,6 +357,9 @@ function update_objects()
  for obj in all(g_objects) do
   -- if the object is off camera below the player, delete it
   if (obj.y > g_camera.y + 64) then
+   if (obj.type == 'alien') then
+    g_aliens -= 1
+   end
    del(g_objects, obj)
   else
    obj.update(obj)
@@ -407,22 +413,17 @@ function populate_region(yvalue)
      new_cactus(col*4 + i+1, tiley)
     elseif (sprite == 34) then
      new_barrel(col*4 + i+1, tiley)
-    else
-     local percentage = rnd()
-     if (percentage < 0.03) then
-      new_alien(col*4 + i+1, tiley)
-     elseif (percentage >= 0.03 and percentage < 0.06) then
-      new_cow(col*4 + i+1, tiley)
-     end
+    elseif (rnd() < 0.03) then
+     new_cow(col*4 + i+1, tiley)
     end
    end
   end
  end
 end
 
-function check_for_collision(type, x, y, w, h)
+function check_for_collision(x, y, w, h)
  for obj in all(g_objects) do
-  if (obj.type == type) then
+  if (obj.collide == true) then
    if (obj.x < x+w and obj.x+obj.w > x and obj.y < y+h and obj.y+obj.h > y) then
     return obj
    end
@@ -436,9 +437,20 @@ end
 function is_occupied(tilex, tiley)
  for obj in all(g_objects) do
   if (obj.tilex == tilex and obj.tiley == tiley) then
-   if (obj.sortprio == 1) then -- only cows have sortprio 1
-    return 2, obj
+   -- cow
+   if (obj.type == 'cow') then 
+    return 2, obj 
    end
+
+   -- alien
+   if (obj.type == 'alien' and obj.spawn_timer > 59) then
+    return 0, obj
+   end
+
+   if (obj.type == 'ammo') then
+    return 0, obj
+   end
+
    return 1, obj
   end
  end
@@ -460,7 +472,7 @@ function spawn_bullet(tilex, tiley)
   
   -- the random "+9" looks weird but we center the bullet's collision hitbox
   -- so that we only scan for collisions in our column, not for adjacent columns of tiles
-  local col = check_for_collision('collide', self.x+9, self.y, 8, 8)
+  local col = check_for_collision(self.x+9, self.y, 8, 8)
   if (col ~= nil and self.y > g_camera.y) then -- don't destroy off-screen targets
    if (col.explode ~= nil) then
     col.explode(col)
@@ -485,6 +497,7 @@ end
 function new_player(tilex, tiley)
  local player = {}
  player.type = 'player'
+ player.collide = false
  player.sortprio = 2
 
  player.tilex = tilex
@@ -634,7 +647,8 @@ end
 function new_barrel(tilex, tiley)
  -- sprite num: 34
  local barrel = {}
- barrel.type = 'collide'
+ barrel.type = 'barrel'
+ barrel.collide = true
  barrel.sortprio = 0
 
  barrel.tilex = tilex
@@ -651,6 +665,9 @@ function new_barrel(tilex, tiley)
 
  barrel.explode = function(self)
   explode(34, self.tilex, self.tiley)
+  if (rnd() < 0.5) then
+   new_ammo(self.tilex, self.tiley)
+  end
   del(g_objects, self)
  end
 
@@ -665,7 +682,8 @@ end
 function new_cactus(tilex, tiley)
  -- sprite num: 32
  local cactus = {}
- cactus.type = 'collide'
+ cactus.type = 'cactus'
+ cactus.collide = true
  cactus.sortprio = 0
 
  cactus.tilex = tilex
@@ -693,7 +711,8 @@ function new_alien(tilex, tiley)
  -- sprite num: 38
  play_sfx(8)
  local alien = {}
- alien.type = 'collide'
+ alien.type = 'alien'
+ alien.collide = false
  alien.sortprio = 0
 
  alien.tilex = tilex
@@ -780,9 +799,13 @@ function new_alien(tilex, tiley)
   elseif (self.state == "spawning") then
    self.spawn_timer -= 1
 
+   if (self.spawn_timer == 60) then
+    g_shake_frame=4
+    self.collide = true
+   end
+
    if (self.spawn_timer <= 0) then
     self.state = "idle"
-    shake=4
    end
 
    -- logic
@@ -799,6 +822,7 @@ function new_alien(tilex, tiley)
  alien.explode = function(self)
   explode(38, self.tilex, self.tiley)
   del(g_objects, self)
+  g_aliens -= 1
  end
  
  alien.draw = function(self)
@@ -858,95 +882,147 @@ function new_alien(tilex, tiley)
  add(g_objects, alien)
 end
 
+function spawn_alien()
+ local min_tilex = g_player.tilex - 2
+ local min_tiley = g_player.tiley + 1
+
+ -- 1) pick a random number with 5% chance to spawn alien
+ -- 2) pick a random tile from the list of options
+ -- 3) check if that tile is occupied
+ -- 4) if not occupied, spawn in the alien
+ if (g_aliens < 2 and rnd() < 0.05) then
+  local tilex = flr(rnd(5)) + min_tilex
+  local tiley = flr(rnd(3)) + min_tiley
+  local tile, obj = is_occupied(tilex, tiley)
+
+  if (tile == 0 and obj == nil) then
+   new_alien(tilex, tiley)
+   g_aliens += 1
+  end
+ end
+end
+
 function new_cow(tilex, tiley)
-  -- sprite num: 109
-  local cow = {}
-  cow.type = 'collide'
-  cow.sortprio = 1
+ -- sprite num: 109
+ local cow = {}
+ cow.type = 'cow'
+ cow.collide = true
+ cow.sortprio = 1
  
-  cow.tilex = tilex
-  cow.tiley = tiley
+ cow.tilex = tilex
+ cow.tiley = tiley
+
+ cow.x = (16 * (tilex-1))
+ cow.y = -(16 * (tiley-1))
+ cow.w = 16
+ cow.h = 16
+
+ cow.decision_timer = 0
+ cow.flip = false
  
-  cow.x = (16 * (tilex-1))
-  cow.y = -(16 * (tiley-1))
-  cow.w = 16
-  cow.h = 16
+ -- mooooovement
+ cow.update = function(self)
+  if (self.decision_timer <= 0) then
+   -- 20% chance to take an action
+   if (rnd() < 0.05) then
+    self.decision_timer = 60
 
-  cow.decision_timer = 0
-  cow.flip = false
- 
-  -- mooooovement
-  cow.update = function(self)
-   if (self.decision_timer <= 0) then
-    -- 20% chance to take an action
-    if (rnd() < 0.05) then
-     self.decision_timer = 60
+    local dir = flr(rnd(4)) -- 0 - 3 only integers
+    if (dir == k_left and self.tilex > 1) then
+     local tile, _ = is_occupied(self.tilex-1, self.tiley)
+     if (tile == 0) then -- empty tile
+      self.tilex -= 1
+      self.flip = false
+     end
 
-     local dir = flr(rnd(4)) -- 0 - 3 only integers
-     if (dir == k_left and self.tilex > 1) then
-      local tile, _ = is_occupied(self.tilex-1, self.tiley)
-      if (tile == 0) then -- empty tile
-       self.tilex -= 1
-       self.flip = false
-      end
+    elseif (dir == k_right and self.tilex < g_world_tilewidth) then
+     local tile, _ = is_occupied(self.tilex+1, self.tiley)
+     if (tile == 0) then -- empty tile
+      self.tilex += 1
+      self.flip = true
+     end
 
-     elseif (dir == k_right and self.tilex < g_world_tilewidth) then
-      local tile, _ = is_occupied(self.tilex+1, self.tiley)
-      if (tile == 0) then -- empty tile
-       self.tilex += 1
-       self.flip = true
-      end
+    elseif (dir == k_up) then
+     local tile, _ = is_occupied(self.tilex, self.tiley+1)
+     if (tile == 0) then -- empty tile
+      self.tiley += 1
+     end
 
-     elseif (dir == k_up) then
-      local tile, _ = is_occupied(self.tilex, self.tiley+1)
-      if (tile == 0) then -- empty tile
-       self.tiley += 1
-      end
-
-     elseif (dir == k_down) then
-      local tile, _ = is_occupied(self.tilex, self.tiley-1)
-      if (tile == 0) then -- empty tile
-       self.tiley -= 1
-      end
+    elseif (dir == k_down) then
+     local tile, _ = is_occupied(self.tilex, self.tiley-1)
+     if (tile == 0) then -- empty tile
+      self.tiley -= 1
      end
     end
    end
-
-   self.x = lerp(self.x, (16 * (self.tilex-1)), 0.3)
-   self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
-
-   self.decision_timer -= 1
   end
 
-  cow.rescue = function(self)
-   add_points(10, cow.tilex, cow.tiley)
+  self.x = lerp(self.x, (16 * (self.tilex-1)), 0.3)
+  self.y = lerp(self.y, -(16 * (self.tiley-1)), 0.3)
+
+  self.decision_timer -= 1
+ end
+
+ cow.rescue = function(self)
+  add_points(10, cow.tilex, cow.tiley)
+  del(g_objects, self)
+ end
+
+ cow.draw = function(self)
+  local offset = 4
+  if (self.flip) then
+   offset = -4
+  end
+  shadow({x=self.x+offset, y=self.y})
+  spr(109, self.x-4, self.y, 3, 2, self.flip)
+ end
+ 
+ add(g_objects, cow)
+end
+
+function new_ammo(tilex, tiley)
+ local item = {}
+
+ item.type = 'ammo'
+ item.collide = false
+ item.sortprio = 0
+
+ item.tilex = tilex
+ item.tiley = tiley
+
+ item.x = (16 * (tilex-1))
+ item.y = -(16 * (tiley-1))
+ item.w = 16
+ item.h = 16
+
+ item.update = function(self)
+  if (g_player.tilex == self.tilex and g_player.tiley == self.tiley) then
+   refill_ammo()
    del(g_objects, self)
   end
-
-  cow.draw = function(self)
-   local offset = 4
-   if (self.flip) then
-    offset = -4
-   end
-   shadow({x=self.x+offset, y=self.y})
-   spr(109, self.x-4, self.y, 3, 2, self.flip)
-  end
- 
-  add(g_objects, cow)
  end
+
+ item.draw = function(self)
+  sspr(59, 8, 10, 8, self.x + 3, self.y + 6 + (cos(g_frame/60)*2))
+ end
+
+ add(g_objects, item)
+end
 
 -->8
 -- helper functions
 
 function shake_screen()
-	local shakex= rnd(shake) - (shake / 2)
-	local shakey=rnd(shake) - (shake / 2)
-	camera(shakex,shakey)
-	shake -= 1
-	if shake > 10 then
-		shake *= 0.875
-	elseif shake < 1 then
-		shake = 0
+	local shakex= rnd(g_shake_frame) - (g_shake_frame / 2)
+	local shakey=rnd(g_shake_frame) - (g_shake_frame / 2)
+
+ g_shake = {x=shakex, y=shakey}
+
+ g_shake_frame -= 1
+	if g_shake_frame > 10 then
+		g_shake_frame *= 0.875
+	elseif g_shake_frame < 1 then
+		g_shake_frame = 0
 	end
 end
 
@@ -1045,6 +1121,11 @@ end
 function shadow(o)
  ovalfill(o.x, o.y+12, o.x+15, o.y+17, 4)
  ovalfill(o.x+1, o.y+12, o.x+14, o.y+17, 2)
+end
+
+function refill_ammo()
+ g_ammo = 6
+ -- TODO: ammo refill animation
 end
 
 function explode(sprnum, tilex, tiley)
