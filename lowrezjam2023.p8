@@ -54,6 +54,9 @@ function _init()
 
  -- TODO: turn back to g_game_states.e_splash before release!
  g_current_state = g_game_states.e_loading
+
+ --particle system 2
+ part={}
 end
 
 local s = 8
@@ -292,6 +295,11 @@ function update_playing()
 
  -- update screenshake
  shake_screen()
+
+ -- particle 2 test
+ if btnp(❎) then
+ 	spawnpuft(32,32)
+ end
 end
 
 function draw_playing()
@@ -413,7 +421,7 @@ function populate_region(yvalue)
      new_cactus(col*4 + i+1, tiley)
     elseif (sprite == 34) then
      new_barrel(col*4 + i+1, tiley)
-    elseif (rnd() < 0.03) then
+    elseif (rnd() < 0.2 ) then -- cow freq 0.03
      new_cow(col*4 + i+1, tiley)
     end
    end
@@ -526,7 +534,7 @@ function new_player(tilex, tiley)
    self.tilex -= 1
    self.moving[k_left] = true
    self.moving[k_right] = false
-   self.strafe_cd = 17
+   self.strafe_cd = 10
 
    -- check for cow
    if (tileleft == 2) then
@@ -540,7 +548,7 @@ function new_player(tilex, tiley)
    self.tilex += 1
    self.moving[k_right] = true
    self.moving[k_left] = false
-   self.strafe_cd = 17
+   self.strafe_cd = 10
 
    -- check for cow
    if (tileright == 2) then
@@ -890,7 +898,7 @@ function spawn_alien()
  -- 2) pick a random tile from the list of options
  -- 3) check if that tile is occupied
  -- 4) if not occupied, spawn in the alien
- if (g_aliens < 2 and rnd() < 0.05) then
+ if (g_aliens < 2 and rnd() < 0.1) then -- alien freq 0.05
   local tilex = flr(rnd(5)) + min_tilex
   local tiley = flr(rnd(3)) + min_tiley
   local tile, obj = is_occupied(tilex, tiley)
@@ -1200,6 +1208,40 @@ function update_point_particles()
   end
  end
 end
+
+-- ----------------
+-- PARTICLE SYSTEM 2
+-- ----------------
+
+-- spawn a small puft
+function spawnpuft(_x,_y)
+	for i= 0,5 do 
+	 local _ang = rnd()
+	 local _dx = sin(_ang)*1
+	 local _dy = cos(_ang)*1
+		addpart(_x,_y,_dx,_dy,2,15+rnd(15),{7,6,13},1+rnd(2))
+	end
+end
+
+-- add a particle
+function addpart(_x,_y,_dx,_dy,_type,_maxage,_col,_s)
+  local _p = {}
+  _p.x=_x
+  _p.y=_y
+  _p.dx=_dx
+  _p.dy=_dy
+  _p.tpe=_type
+  _p.mage=_maxage
+  _p.age=0
+  _p.col=_col[1]
+  _p.colarr=_col
+  _p.rot=1
+  _p.rottimer=0
+  _p.s=_s
+  _p.os=_s
+ 
+  add(part,_p)
+ end
 
 __gfx__
 0000000099999999998889998f899889999999999999999999988899999777777779999999999999997777999999999779977779999999779977779999999999
