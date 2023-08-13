@@ -12,7 +12,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {true, false, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
+local g_debug = {false, false, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
 local g_muted = false
 
 -- magic numbers
@@ -54,9 +54,6 @@ function _init()
 
  -- TODO: turn back to g_game_states.e_splash before release!
  g_current_state = g_game_states.e_loading
-
- --particle system 2
- part={}
 end
 
 local s = 8
@@ -233,6 +230,7 @@ local g_points = 0
 local g_ammo = 6
 local g_ammo_spawned = false
 local g_aliens = 0
+local g_alien_spawn_cd = 0
 
 function init_playing()
  -- player
@@ -260,6 +258,10 @@ function update_playing()
 
  if (g_timer <= 0) then
   g_current_state = g_game_states.e_gameover
+ end
+
+ if (g_alien_spawn_cd > 0) then
+  g_alien_spawn_cd -= 1
  end
 
  -- objects first (makes sure we capture latest player movement)
@@ -336,8 +338,8 @@ function draw_playing()
 
  -- points ui
  local point_str = format_num(g_points)
- rectfill(50, 1, 62, 7, 5)
- print(point_str, 51, 2, 10)
+ rectfill(62-(#point_str*4), 1, 62, 7, 5)
+ print(point_str, 63-(#point_str*4), 2, 10)
 
  -- ammo ui
  rectfill(60, 50, 62, 62, 5)
@@ -443,9 +445,9 @@ function check_for_collision(x, y, w, h)
 end
 
 -- return 0 for false, 1 for true, and 2 for cow
-function is_occupied(tilex, tiley)
+function is_occupied(tilex, tiley, ignore_obj)
  for obj in all(g_objects) do
-  if (obj.tilex == tilex and obj.tiley == tiley) then
+  if (obj.tilex == tilex and obj.tiley == tiley and obj ~= ignore_obj) then
    -- cow
    if (obj.type == 'cow') then 
     return 2, obj 
@@ -525,9 +527,9 @@ function new_player(tilex, tiley)
  player.update = function(self)
   -- player movement
   -- check left, check right, check up
-  local tileleft, objleft = is_occupied(self.tilex-1, self.tiley)
-  local tileright, objright = is_occupied(self.tilex+1, self.tiley)
-  local tileup, objup =  is_occupied(self.tilex, self.tiley+1)
+  local tileleft, objleft = is_occupied(self.tilex-1, self.tiley, self)
+  local tileright, objright = is_occupied(self.tilex+1, self.tiley, self)
+  local tileup, objup =  is_occupied(self.tilex, self.tiley+1, self)
 
   if(btnp(k_left) and self.tilex > 1 and tileleft != 1 and self.strafe_cd <= 0) then
    -- strafe left
@@ -602,6 +604,7 @@ function new_player(tilex, tiley)
  player.harm = function(self)
   -- TODO: player harm animation
   remove_time(20)
+  g_shake_frame = 6
  end
 
  player.draw = function(self)
@@ -666,7 +669,7 @@ function new_barrel(tilex, tiley)
  end
 
  barrel.explode = function(self)
-  explode(34, self.tilex, self.tiley)
+  explode(34, self.tilex, self.tiley, false)
   if (rnd() < 0.1) then
    new_ammo(self.tilex, self.tiley)
   elseif (rnd() < 0.4) then
@@ -717,7 +720,7 @@ function new_alien(tilex, tiley)
  local alien = {}
  alien.type = 'alien'
  alien.collide = false
- alien.sortprio = 0
+ alien.sortprio = 3
 
  alien.tilex = tilex
  alien.tiley = tiley
@@ -733,16 +736,24 @@ function new_alien(tilex, tiley)
  alien.moving = {false, false, false, false}
  alien.decision_timer = 0
  alien.warning_timer = 60
- alien.spawn_dur = 72 --78
+ alien.spawn_dur = 72
  alien.spawn_timer = alien.spawn_dur
  alien.kamikaze = false
 
  alien.update = function(self)
   -- check if we're colliding with player - if so, damage them
-  if (self.collide == true and self.tilex == g_player.tilex and self.tiley == g_player.tiley) then
+  if (self.collide == true and self.tilex == g_player.tilex and self.tiley == g_player.tiley and self.state ~= "moving" and self.state ~= "attacking") then
    g_player.harm(g_player)
    self.kamikaze = true
    self.explode(self)
+  end
+
+  -- check if we're touching a cow - if so, kill it
+  local tile, obj = is_occupied(self.tilex, self.tiley, self)
+  if (self.collide == true and tile > 0 and obj.type == 'cow' and self.state ~= "moving" and self.state ~= "attacking") then
+   self.kamikaze = true
+   self.explode(self)
+   obj.explode(obj)
   end
 
   -- if we're not warning, and not spawning, then do this
@@ -752,7 +763,7 @@ function new_alien(tilex, tiley)
     if (rnd() < 0.05) then
      self.decision_timer = 60
 
-     -- if the player is nearby, explode on them
+     -- if the player is nearby, kamikaze toward them
      if (self.tilex-1 == g_player.tilex and self.tiley == g_player.tiley) or
         (self.tilex+1 == g_player.tilex and self.tiley == g_player.tiley) or
         (self.tilex == g_player.tilex and self.tiley-1 == g_player.tiley) or
@@ -760,37 +771,73 @@ function new_alien(tilex, tiley)
 
          self.tilex = g_player.tilex
          self.tiley = g_player.tiley
+         self.state = "attacking"
          return
      end
 
+     -- determine adjacencies
+     local tileleft, objleft = 0, nil
+     local tileright, objright = 0, nil
+     if (self.tilex > 1) then
+      tileleft, objleft = is_occupied(self.tilex-1, self.tiley, self)
+     end
+     if (self.tilex < g_world_tilewidth) then
+      tileright, objright = is_occupied(self.tilex+1, self.tiley, self)
+     end
+
+     local tileup, objup = is_occupied(self.tilex, self.tiley+1, self)
+     local tiledown, objdown = is_occupied(self.tilex, self.tiley-1, self)
+
+     -- if there is a cow adjacent, target that instead
+     if (tileleft > 0 and objleft.type == 'cow') then
+      self.state = "attacking"
+      self.tilex -= 1
+      return
+     end
+
+     if (tileright > 0 and objright.type == 'cow') then
+      self.state = "attacking"
+      self.tilex += 1
+      return
+     end
+
+     if (tileup > 0 and objup.type == 'cow') then
+      self.state = "attacking"
+      self.tiley += 1
+      return
+     end
+
+     if (tiledown > 0 and objdown.type == 'cow') then
+      self.state = "attacking"
+      self.tiley -= 1
+      return
+     end
+
+     -- otherwise, move randomly
      local dir = flr(rnd(4)) -- 0 - 3 only integers
-     if (dir == k_left and self.tilex > 1) then
-      local tile, _ = is_occupied(self.tilex-1, self.tiley)
-      if (tile == 0) then -- empty tile
+     if (dir == k_left and tileleft ~= nil) then
+      if (tileleft == 0) then -- empty tile
        self.tilex -= 1
        self.moving[k_left] = true
        self.state = "moving"
       end
 
-     elseif (dir == k_right and self.tilex < g_world_tilewidth) then
-      local tile, _ = is_occupied(self.tilex+1, self.tiley)
-      if (tile == 0) then -- empty tile
+     elseif (dir == k_right and tileright ~= nil) then
+      if (tileright == 0) then -- empty tile
        self.tilex += 1
        self.moving[k_right] = true
        self.state = "moving"
       end
 
-     elseif (dir == k_up) then
-      local tile, _ = is_occupied(self.tilex, self.tiley+1)
-      if (tile == 0) then -- empty tile
+     elseif (dir == k_up and tileup ~= nil) then
+      if (tileup == 0) then -- empty tile
        self.tiley += 1
        self.moving[k_up] = true
        self.state = "moving"
       end
 
-     elseif (dir == k_down) then
-      local tile, _ = is_occupied(self.tilex, self.tiley-1)
-      if (tile == 0) then -- empty tile
+     elseif (dir == k_down and tiledown ~= nil) then
+      if (tiledown == 0) then -- empty tile
        self.tiley -= 1
        self.moving[k_down] = true
        self.state = "moving"
@@ -830,22 +877,13 @@ function new_alien(tilex, tiley)
    if (self.spawn_timer <= 0) then
     self.state = "idle"
    end
-
-   -- logic
-
-  elseif (self.state == "idle") then
-   -- logic
-
-  elseif (self.state == "moving") then
-   -- logic
-
   end
  end
 
  alien.explode = function(self)
-  explode(38, self.tilex, self.tiley)
+  explode(38, self.tilex, self.tiley, self.kamikaze)
   g_aliens -= 1
-  if (rnd() < 0.5 and self.kamikaze == false) then
+  if (rnd() < 0.7 and self.kamikaze == false) then
    new_soda(self.tilex, self.tiley)
   end
   del(g_objects, self)
@@ -868,7 +906,6 @@ function new_alien(tilex, tiley)
     print("!", self.x+6, self.y+12, 8)
     print("!", self.x+7, self.y+12, 8)
   elseif (self.state == "spawning") then
-   -- logic
    local spawn_progress = self.spawn_timer / self.spawn_dur
    shadow(self)
    -- spawn animation
@@ -892,16 +929,19 @@ function new_alien(tilex, tiley)
     -- roar
     spr(74, self.x, self.y-1, 2, 2)
    end
-   
-   --spr(38, self.x, self.y, 2, 2)
   elseif (self.state == "idle") then
-   -- logic
    shadow(self)
    spr(38, self.x, self.y, 2, 2)
   elseif (self.state == "moving") then
-   -- logic
    shadow(self)
    spr(38, self.x, self.y, 2, 2)
+  elseif (self.state == "attacking") then
+   shadow(self)
+   pal(11, 8)
+   pal(3, 2)
+   spr(38, self.x, self.y, 2, 2)
+   pal(11, 11)
+   pal(3, 3)
   end
  end
 
@@ -916,7 +956,7 @@ function spawn_alien()
  -- 2) pick a random tile from the list of options
  -- 3) check if that tile is occupied
  -- 4) if not occupied, spawn in the alien
- if (g_aliens < 2 and rnd() < 0.1) then -- alien freq 0.05
+ if (g_aliens < 2 and rnd() < 0.1 and g_alien_spawn_cd == 0) then
   local tilex = flr(rnd(5)) + min_tilex
   local tiley = flr(rnd(3)) + min_tiley
   local tile, obj = is_occupied(tilex, tiley)
@@ -924,6 +964,7 @@ function spawn_alien()
   if (tile == 0 and obj == nil) then
    new_alien(tilex, tiley)
    g_aliens += 1
+   g_alien_spawn_cd = 30
   end
  end
 end
@@ -960,27 +1001,27 @@ function new_cow(tilex, tiley)
 
     local dir = flr(rnd(4)) -- 0 - 3 only integers
     if (dir == k_left and self.tilex > 1) then
-     local tile, _ = is_occupied(self.tilex-1, self.tiley)
+     local tile, _ = is_occupied(self.tilex-1, self.tiley, self)
      if (tile == 0) then -- empty tile
       self.tilex -= 1
       self.flip = false
      end
 
     elseif (dir == k_right and self.tilex < g_world_tilewidth) then
-     local tile, _ = is_occupied(self.tilex+1, self.tiley)
+     local tile, _ = is_occupied(self.tilex+1, self.tiley, self)
      if (tile == 0) then -- empty tile
       self.tilex += 1
       self.flip = true
      end
 
     elseif (dir == k_up) then
-     local tile, _ = is_occupied(self.tilex, self.tiley+1)
+     local tile, _ = is_occupied(self.tilex, self.tiley+1, self)
      if (tile == 0) then -- empty tile
       self.tiley += 1
      end
 
     elseif (dir == k_down) then
-     local tile, _ = is_occupied(self.tilex, self.tiley-1)
+     local tile, _ = is_occupied(self.tilex, self.tiley-1, self)
      if (tile == 0) then -- empty tile
       self.tiley -= 1
      end
@@ -996,6 +1037,11 @@ function new_cow(tilex, tiley)
 
  cow.rescue = function(self)
   add_points(10, cow.tilex, cow.tiley)
+  del(g_objects, self)
+ end
+
+ cow.explode = function(self)
+  add_points(-50, cow.tilex, cow.tiley)
   del(g_objects, self)
  end
 
@@ -1099,6 +1145,10 @@ function shake_screen()
 	end
 end
 
+function reset_palette()
+ pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
+end
+
 function lerp(from, to, weight)
  local dist = to - from
  if (abs(dist) < 0.2) then return to end
@@ -1165,6 +1215,11 @@ function format_num(num)
  end
 end
 
+function shadow(o)
+ ovalfill(o.x, o.y+12, o.x+15, o.y+17, 4)
+ ovalfill(o.x+1, o.y+12, o.x+14, o.y+17, 2)
+end
+
 function add_points(num, tilex, tiley)
  -- convert to screen coordinates
  local screenx = ((tilex-1)*16) - g_camera.x
@@ -1179,6 +1234,9 @@ function add_points(num, tilex, tiley)
   local x_offset = -4
   local y = 2
   local point_str = "+"..num
+  if (num < 0) then
+   point_str = tostr(num)
+  end
   while (y != 15) do
    y = lerp(y, 15, 0.2)
    local actualx = screenx + (#point_str*2) + x_offset
@@ -1190,11 +1248,6 @@ function add_points(num, tilex, tiley)
  end)
 
  add(g_point_particles, particle)
-end
-
-function shadow(o)
- ovalfill(o.x, o.y+12, o.x+15, o.y+17, 4)
- ovalfill(o.x+1, o.y+12, o.x+14, o.y+17, 2)
 end
 
 function refill_ammo()
@@ -1213,11 +1266,11 @@ function add_time(time)
  -- TODO: time addition animation
 end
 
-function explode(sprnum, tilex, tiley)
+function explode(sprnum, tilex, tiley, kamikaze)
  -- update points
  if (sprnum == 34) then -- barrel
   add_points(2, tilex, tiley)
- elseif (sprnum == 38) then -- alien
+ elseif (sprnum == 38 and not kamikaze) then -- alien
   add_points(5, tilex, tiley)
  end
 
