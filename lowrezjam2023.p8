@@ -231,21 +231,39 @@ local g_ammo = 6
 local g_ammo_spawned = false
 local g_aliens = 0
 local g_alien_spawn_cd = 0
+local g_aliens_killed = 0
+local g_cows_saved = 0
+local g_time_alive = 0
 
 function init_playing()
- -- player
- g_player = new_player(6, 0)
+ -- camera
+ g_camera = {
+  x = 0,
+  y = -26,
+  xtarget = 0,
+  ytarget = 0,
+  offset = -6
+ }
 
  -- map regions
+ g_mapregions = {}
  add(g_mapregions, -26)
  add(g_mapregions, -154)
 
  -- populate new region
+ g_objects = {}
+ g_player = new_player(6, 0)
  populate_region(g_mapregions[1])
 
  -- timer & points
  g_timer = 180
  g_points = 0
+ g_aliens = 0
+ g_alien_spawn_cd = 0
+ g_aliens_killed = 0
+ g_cows_saved = 0
+ g_time_alive = 0
+ g_frame = 1
 
  g_current_state = g_game_states.e_playing
 end
@@ -254,9 +272,13 @@ function update_playing()
  -- update timer
  if (g_frame % 60 == 0) then
   g_timer -= 1
+  g_time_alive += 1
  end
 
  if (g_timer <= 0) then
+  g_objects = {}
+  g_particles = {}
+  g_point_particles = {}
   g_current_state = g_game_states.e_gameover
  end
 
@@ -355,11 +377,34 @@ end
 -->8
 -- game over
 function update_gameover()
-
+ if (btnp(k_confirm)) then
+  g_current_state = g_game_states.e_loading
+ end
 end
 
 function draw_gameover()
- print("gameover!", 0, 0, 7)
+ camera()
+ cls(5)
+ print("game over!", 12, 6, 7)
+
+ local points = tostr(g_points)
+ local cows = tostr(g_cows_saved)
+ local time = tostr(g_time_alive)
+ local aliens = tostr(g_aliens_killed)
+
+ -- icons
+ print(chr(146), 13, 20, 7)
+ print(chr(147), 13, 26, 7)
+ print(chr(130), 13, 32, 7)
+ print(chr(136), 13, 38, 7)
+
+ -- stats
+ print(points, 50-(#points*4), 20, 7)
+ print(time, 50-(#time*4), 26, 7)
+ print(cows, 50-(#cows*4), 32, 7)
+ print(aliens, 50-(#aliens*4), 38, 7)
+
+ print(chr(142).." to restart", 7, 54, 7)
 end
 
 -->8
@@ -881,6 +926,9 @@ function new_alien(tilex, tiley)
  end
 
  alien.explode = function(self)
+  if (self.kamikaze == false) then
+   g_aliens_killed += 1
+  end
   explode(38, self.tilex, self.tiley, self.kamikaze)
   g_aliens -= 1
   if (rnd() < 0.7 and self.kamikaze == false) then
@@ -1037,6 +1085,7 @@ function new_cow(tilex, tiley)
 
  cow.rescue = function(self)
   add_points(10, cow.tilex, cow.tiley)
+  g_cows_saved += 1
   del(g_objects, self)
  end
 
