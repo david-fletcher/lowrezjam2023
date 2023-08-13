@@ -295,11 +295,6 @@ function update_playing()
 
  -- update screenshake
  shake_screen()
-
- -- particle 2 test
- if btnp(❎) then
- 	spawnpuft(32,32)
- end
 end
 
 function draw_playing()
@@ -1209,40 +1204,6 @@ function update_point_particles()
   end
  end
 end
-
--- ----------------
--- PARTICLE SYSTEM 2
--- ----------------
-
--- spawn a small puft
-function spawnpuft(_x,_y)
-	for i= 0,5 do 
-	 local _ang = rnd()
-	 local _dx = sin(_ang)*1
-	 local _dy = cos(_ang)*1
-		addpart(_x,_y,_dx,_dy,2,15+rnd(15),{7,6,13},1+rnd(2))
-	end
-end
-
--- add a particle
-function addpart(_x,_y,_dx,_dy,_type,_maxage,_col,_s)
-  local _p = {}
-  _p.x=_x
-  _p.y=_y
-  _p.dx=_dx
-  _p.dy=_dy
-  _p.tpe=_type
-  _p.mage=_maxage
-  _p.age=0
-  _p.col=_col[1]
-  _p.colarr=_col
-  _p.rot=1
-  _p.rottimer=0
-  _p.s=_s
-  _p.os=_s
- 
-  add(part,_p)
- end
 
 __gfx__
 0000000099999999998889998f899889999999999999999999988899999777777779999999999999997777999999999779977779999999779977779999999999
