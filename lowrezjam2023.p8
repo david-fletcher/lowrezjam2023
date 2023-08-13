@@ -337,7 +337,7 @@ function draw_playing()
  line(2, 61-timer_pct, 2, 61, color)
 
  -- points ui
- local point_str = format_num(g_points)
+ local point_str = tostr(g_points)
  rectfill(62-(#point_str*4), 1, 62, 7, 5)
  print(point_str, 63-(#point_str*4), 2, 10)
 
@@ -1201,17 +1201,6 @@ end
 function play_sfx(s)
  if (not g_muted) then
   sfx(s)
- end
-end
-
-function format_num(num)
- local numstr = tostr(num)
- if (#numstr > 2) then
-  return numstr
- elseif (#numstr == 2) then
-  return "0"..numstr
- else
-  return "00"..numstr
  end
 end
 
