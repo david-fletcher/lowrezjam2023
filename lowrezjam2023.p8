@@ -12,7 +12,7 @@ __lua__
 
 -- globals
 local g_current_state = nil
-local g_debug = {false, false, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
+local g_debug = {true, false, false} -- 1 is CPU usage, 2 is player movement, 3 is length of particle
 local g_muted = false
 
 -- magic numbers
@@ -228,6 +228,7 @@ local g_objects = {}
 local g_timer = 180
 local g_points = 0
 local g_ammo = 6
+local g_ammo_spawned = false
 local g_aliens = 0
 
 function init_playing()
@@ -254,7 +255,7 @@ function update_playing()
   g_timer -= 1
  end
 
- if (g_timer == 0) then
+ if (g_timer <= 0) then
   g_current_state = g_game_states.e_gameover
  end
 
@@ -263,6 +264,11 @@ function update_playing()
 
  -- attempt to spawn in a new alien
  spawn_alien()
+
+ -- attempt to spawn in more ammo if needed
+ if (g_ammo <= 0) then
+  spawn_ammo()
+ end
 
  -- camera movement
  if (g_player.x-g_camera.xtarget < 16) then
@@ -447,7 +453,7 @@ function is_occupied(tilex, tiley)
     return 0, obj
    end
 
-   if (obj.type == 'ammo') then
+   if (obj.type == 'ammo' or obj.type == 'soda') then
     return 0, obj
    end
 
@@ -527,11 +533,7 @@ function new_player(tilex, tiley)
    self.moving[k_left] = true
    self.moving[k_right] = false
    self.strafe_cd = 17
-
-   -- check for cow
-   if (tileleft == 2) then
-    objleft.rescue(objleft)
-   end
+   remove_time(3)
   end
 
   if (btnp(k_right) and self.tilex < g_world_tilewidth and tileright != 1 and self.strafe_cd <= 0) then
@@ -541,11 +543,7 @@ function new_player(tilex, tiley)
    self.moving[k_right] = true
    self.moving[k_left] = false
    self.strafe_cd = 17
-
-   -- check for cow
-   if (tileright == 2) then
-    objright.rescue(objright)
-   end
+   remove_time(3)
   end
 
   if (btnp(k_up) and tileup != 1 and self.strafe_cd <= 0) then
@@ -553,11 +551,7 @@ function new_player(tilex, tiley)
    play_sfx(4+flr(rnd(3)))
    self.tiley += 1
    self.moving[k_up] = true
-
-   -- check for cow
-   if (tileup == 2) then
-    objup.rescue(objup)
-   end
+   remove_time(3)
   end
 
   -- player shooting
@@ -600,6 +594,11 @@ function new_player(tilex, tiley)
   if (g_tick) then
     self.flip = not self.flip
   end
+ end
+
+ player.harm = function(self)
+  -- TODO: player harm animation
+  remove_time(20)
  end
 
  player.draw = function(self)
@@ -665,8 +664,10 @@ function new_barrel(tilex, tiley)
 
  barrel.explode = function(self)
   explode(34, self.tilex, self.tiley)
-  if (rnd() < 0.5) then
+  if (rnd() < 0.1) then
    new_ammo(self.tilex, self.tiley)
+  elseif (rnd() < 0.4) then
+   new_soda(self.tilex, self.tiley)
   end
   del(g_objects, self)
  end
@@ -727,18 +728,37 @@ function new_alien(tilex, tiley)
  -- indexed by the directional buttons, k_left, k_right, k_up, and k_down
  alien.state = "warning"
  alien.moving = {false, false, false, false}
- alien.decision_timer = 120
+ alien.decision_timer = 0
  alien.warning_timer = 150
  alien.spawn_dur = 78
  alien.spawn_timer = alien.spawn_dur
+ alien.kamikaze = false
 
  alien.update = function(self)
+  -- check if we're colliding with player - if so, damage them
+  if (self.collide == true and self.tilex == g_player.tilex and self.tiley == g_player.tiley) then
+   g_player.harm(g_player)
+   self.kamikaze = true
+   self.explode(self)
+  end
+
   -- if we're not warning, and not spawning, then do this
   if (self.state ~= "warning" and self.state ~= "spawning") then
    if (self.decision_timer <= 0) then
     -- 5% chance to take an action
     if (rnd() < 0.05) then
      self.decision_timer = 60
+
+     -- if the player is nearby, explode on them
+     if (self.tilex-1 == g_player.tilex and self.tiley == g_player.tiley) or
+        (self.tilex+1 == g_player.tilex and self.tiley == g_player.tiley) or
+        (self.tilex == g_player.tilex and self.tiley-1 == g_player.tiley) or
+        (self.tilex == g_player.tilex and self.tiley+1 == g_player.tiley) then
+
+         self.tilex = g_player.tilex
+         self.tiley = g_player.tiley
+         return
+     end
 
      local dir = flr(rnd(4)) -- 0 - 3 only integers
      if (dir == k_left and self.tilex > 1) then
@@ -821,8 +841,11 @@ function new_alien(tilex, tiley)
 
  alien.explode = function(self)
   explode(38, self.tilex, self.tiley)
-  del(g_objects, self)
   g_aliens -= 1
+  if (rnd() < 0.5 and self.kamikaze == false) then
+   new_soda(self.tilex, self.tiley)
+  end
+  del(g_objects, self)
  end
  
  alien.draw = function(self)
@@ -922,6 +945,11 @@ function new_cow(tilex, tiley)
  
  -- mooooovement
  cow.update = function(self)
+  if (self.tilex == g_player.tilex and self.tiley == g_player.tiley) then
+   self.rescue(self)
+   return
+  end
+
   if (self.decision_timer <= 0) then
    -- 20% chance to take an action
    if (rnd() < 0.05) then
@@ -985,7 +1013,7 @@ function new_ammo(tilex, tiley)
 
  item.type = 'ammo'
  item.collide = false
- item.sortprio = 0
+ item.sortprio = -1
 
  item.tilex = tilex
  item.tiley = tiley
@@ -998,12 +1026,58 @@ function new_ammo(tilex, tiley)
  item.update = function(self)
   if (g_player.tilex == self.tilex and g_player.tiley == self.tiley) then
    refill_ammo()
+   g_ammo_spawned = false
    del(g_objects, self)
   end
  end
 
  item.draw = function(self)
   sspr(59, 8, 10, 8, self.x + 3, self.y + 6 + (cos(g_frame/60)*2))
+ end
+
+ add(g_objects, item)
+end
+
+function spawn_ammo()
+ local min_tilex = g_player.tilex - 2
+ local min_tiley = g_player.tiley + 4
+
+ if (rnd() < 0.01) then
+  local tilex = flr(rnd(5)) + min_tilex
+  local tiley = min_tiley
+  local tile, obj = is_occupied(tilex, tiley)
+
+  if (tile == 0 and obj == nil) then
+   new_ammo(tilex, tiley)
+   g_ammo_spawned = true
+  end
+ end
+end
+
+function new_soda(tilex, tiley)
+ local item = {}
+
+ item.type = 'soda'
+ item.collide = false
+ item.sortprio = -1
+
+ item.tilex = tilex
+ item.tiley = tiley
+
+ item.x = (16 * (tilex-1))
+ item.y = -(16 * (tiley-1))
+ item.w = 16
+ item.h = 16
+
+ item.update = function(self)
+  if (g_player.tilex == self.tilex and g_player.tiley == self.tiley) then
+   add_time(40)
+   del(g_objects, self)
+  end
+ end
+
+ item.draw = function(self)
+  sspr(0, 50, 10, 10, self.x + 3, self.y + 6 + (cos(g_frame/60)*2))
  end
 
  add(g_objects, item)
@@ -1126,6 +1200,17 @@ end
 function refill_ammo()
  g_ammo = 6
  -- TODO: ammo refill animation
+end
+
+function remove_time(time)
+ g_timer -= time
+ -- TODO: time removal animation
+end
+
+function add_time(time)
+ g_timer += time
+ if (g_timer > 180) then g_timer = 180 end
+ -- TODO: time addition animation
 end
 
 function explode(sprnum, tilex, tiley)
