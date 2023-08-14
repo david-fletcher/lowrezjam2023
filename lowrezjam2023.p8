@@ -53,7 +53,6 @@ function _init()
  -- alter palette
  pal({[0]=0,131,2,3,4,130,134,7,8,137,10,11,138,139,14,143},1)
 
- -- TODO: turn back to g_game_states.e_splash before release!
  g_current_state = g_game_states.e_splash
 end
 
@@ -241,6 +240,9 @@ local g_aliens_killed = 0
 local g_cows_saved = 0
 local g_time_alive = 0
 
+local g_ammo_flash = nil
+local g_timer_flash = nil
+
 function init_playing()
  -- camera
  g_camera = {
@@ -384,7 +386,17 @@ function draw_playing()
  if (timer_pct < 10) then
   color = 8
  end
- rectfill(1, 1, 3, 62, 5)
+
+ if (g_timer_flash ~= nil) then
+  if (costatus(g_timer_flash) ~= 'dead') then
+   coresume(g_timer_flash)
+  else
+   g_timer_flash = nil
+   rectfill(1, 1, 3, 62, 5)
+  end
+ else
+  rectfill(1, 1, 3, 62, 5)
+ end
  line(2, 2, 2, 61, 2)
  line(2, 61-timer_pct, 2, 61, color)
 
@@ -394,7 +406,16 @@ function draw_playing()
  print(point_str, 63-(#point_str*4), 2, 10)
 
  -- ammo ui
- rectfill(60, 50, 62, 62, 5)
+ if (g_ammo_flash ~= nil) then
+  if (costatus(g_ammo_flash) ~= 'dead') then
+   coresume(g_ammo_flash)
+  else
+   g_ammo_flash = nil
+   rectfill(60, 50, 62, 62, 5)
+  end
+ else
+  rectfill(60, 50, 62, 62, 5)
+ end
  for i=0,5 do
   if (i > g_ammo-1) then
     pset(61, 61-(i*2), 2)
@@ -614,7 +635,7 @@ function new_player(tilex, tiley)
    self.moving[k_left] = true
    self.moving[k_right] = false
    self.strafe_cd = 10
-   remove_time(3)
+   remove_time(3, false)
   end
 
   if (btnp(k_right) and self.tilex < g_world_tilewidth and tileright != 1 and self.strafe_cd <= 0) then
@@ -624,7 +645,7 @@ function new_player(tilex, tiley)
    self.moving[k_right] = true
    self.moving[k_left] = false
    self.strafe_cd = 10
-   remove_time(3)
+   remove_time(3, false)
   end
 
   if (btnp(k_up) and tileup != 1 and self.strafe_cd <= 0) then
@@ -632,7 +653,7 @@ function new_player(tilex, tiley)
    play_sfx(4+flr(rnd(3)))
    self.tiley += 1
    self.moving[k_up] = true
-   remove_time(3)
+   remove_time(3, false)
   end
 
   -- player shooting
@@ -678,8 +699,7 @@ function new_player(tilex, tiley)
  end
 
  player.harm = function(self)
-  -- TODO: player harm animation
-  remove_time(20)
+  remove_time(20, true)
   g_shake_frame = 6
  end
 
@@ -1120,7 +1140,7 @@ function new_cow(tilex, tiley)
 
  cow.rescue = function(self)
   add_points(10, cow.tilex, cow.tiley)
-  add_time(5)
+  add_time(5, false)
   g_cows_saved += 1
   del(g_objects, self)
  end
@@ -1204,7 +1224,7 @@ function new_soda(tilex, tiley)
 
  item.update = function(self)
   if (g_player.tilex == self.tilex and g_player.tiley == self.tiley) then
-   add_time(35)
+   add_time(35, true)
    del(g_objects, self)
   end
  end
@@ -1329,18 +1349,68 @@ end
 
 function refill_ammo()
  g_ammo = 6
- -- TODO: ammo refill animation
+ g_ammo_flash = cocreate(function()
+  local flash = true
+  for i=0,60 do
+   if (i % 10 == 0) then
+    flash = not flash
+   end
+
+   if (flash) then
+    rectfill(60, 50, 62, 62, 7)
+   else
+    rectfill(60, 50, 62, 62, 5)
+   end
+
+   yield()
+  end
+ end)
 end
 
-function remove_time(time)
+function remove_time(time, harmed)
  g_timer -= time
- -- TODO: time removal animation
+ if (harmed) then
+  g_timer_flash = cocreate(function()
+   local flash = true
+   for i=0,60 do
+    if (i % 10 == 0) then
+     flash = not flash
+    end
+
+    if (flash) then
+     rectfill(1, 1, 3, 62, 8)
+    else
+     rectfill(1, 1, 3, 62, 5)
+    end
+
+    yield()
+   end
+  end)
+ end
 end
 
-function add_time(time)
+function add_time(time, pickup)
  g_timer += time
  if (g_timer > 180) then g_timer = 180 end
- -- TODO: time addition animation
+
+ if (pickup) then
+  g_timer_flash = cocreate(function()
+   local flash = true
+   for i=0,60 do
+    if (i % 10 == 0) then
+     flash = not flash
+    end
+
+    if (flash) then
+     rectfill(1, 1, 3, 62, 7)
+    else
+     rectfill(1, 1, 3, 62, 5)
+    end
+
+    yield()
+   end
+  end)
+ end
 end
 
 function explode(sprnum, tilex, tiley, kamikaze)
@@ -1413,7 +1483,7 @@ end
 
 function update_point_particles()
  for emitter in all(g_point_particles) do
-  if (costatus(emitter.coroutine)) then
+  if (costatus(emitter.coroutine) ~= 'dead') then
    coresume(emitter.coroutine)
   else
    del(g_point_particles, emitter)
