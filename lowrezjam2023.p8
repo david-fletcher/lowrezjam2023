@@ -272,6 +272,10 @@ function init_playing()
  g_cows_saved = 0
  g_time_alive = 0
  g_frame = 1
+ g_ammo = 6
+ g_ammo_spawned = false
+ g_ammo_flash = nil
+ g_timer_flash = nil
 
  g_current_state = g_game_states.e_playing
 end
