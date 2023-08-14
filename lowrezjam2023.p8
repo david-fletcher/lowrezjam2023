@@ -314,13 +314,13 @@ function update_playing()
 
  -- adjust map regions
  if (g_camera.y + 64 < g_mapregions[1]) then
-  g_mapregions[1] -= 240
+  g_mapregions[1] -= 256
   populate_region(g_mapregions[1])
  end
 
  -- pls don't ask me why populate_region goes in g_mapregions[1] and NOT g_mapregions[2] because idk and idc
  if (g_mapregions[2] > g_camera.y + 64) then
-  g_mapregions[2] -= 240
+  g_mapregions[2] -= 256
  end
 
  -- update screenshake
@@ -337,6 +337,30 @@ function draw_playing()
  map(120, 16, 0,   g_mapregions[2], 8, 16)
  map(120, 16, 64,  g_mapregions[2], 8, 16)
  map(120, 16, 128, g_mapregions[2], 8, 16)
+
+ -- draw the canyon walls (left side)
+ spr(128, -16, g_mapregions[1]-64, 2, 4)
+ spr(130, -16, g_mapregions[1]-32, 2, 4)
+ spr(128, -16, g_mapregions[1], 2, 4)
+ spr(130, -16, g_mapregions[1]+32, 2, 4)
+ spr(128, -16, g_mapregions[1]+64, 2, 4)
+ spr(130, -16, g_mapregions[1]+96, 2, 4)
+ spr(128, -16, g_mapregions[1]+128, 2, 4)
+ spr(130, -16, g_mapregions[1]+160, 2, 4)
+ spr(128, -16, g_mapregions[1]+192, 2, 4)
+ spr(130, -16, g_mapregions[1]+224, 2, 4)
+
+ -- draw the canyon walls (right side)
+ spr(128, 192, g_mapregions[1]-64, 2, 4, true)
+ spr(130, 192, g_mapregions[1]-32, 2, 4, true)
+ spr(128, 192, g_mapregions[1], 2, 4, true)
+ spr(130, 192, g_mapregions[1]+32, 2, 4, true)
+ spr(128, 192, g_mapregions[1]+64, 2, 4, true)
+ spr(130, 192, g_mapregions[1]+96, 2, 4, true)
+ spr(128, 192, g_mapregions[1]+128, 2, 4, true)
+ spr(130, 192, g_mapregions[1]+160, 2, 4, true)
+ spr(128, 192, g_mapregions[1]+192, 2, 4, true)
+ spr(130, 192, g_mapregions[1]+224, 2, 4, true)
 
  draw_objects()
  draw_particles()
@@ -517,6 +541,7 @@ end
 function spawn_bullet(tilex, tiley)
  local bullet = {}
  bullet.type = 'bullet'
+ bullet.sortprio = 5
 
  bullet.x = -2 + (16 * (tilex-1))
  bullet.y = -4 - (16 * (tiley-1))
@@ -530,7 +555,7 @@ function spawn_bullet(tilex, tiley)
   -- so that we only scan for collisions in our column, not for adjacent columns of tiles
   local col = check_for_collision(self.x+9, self.y, 8, 8)
   if (col ~= nil and self.y > g_camera.y) then -- don't destroy off-screen targets
-   if (col.explode ~= nil) then
+   if (col.explode ~= nil and col.type ~= "cow") then
     col.explode(col)
    end
 
@@ -998,14 +1023,18 @@ end
 
 function spawn_alien()
  local min_tilex = g_player.tilex - 2
+ local max_tilex = g_player.tilex + 2
  local min_tiley = g_player.tiley + 1
+
+ if (min_tilex < 0) then min_tilex = 1 end
+ if (max_tilex > g_world_tilewidth) then max_tilex = g_world_tilewidth+1 end
 
  -- 1) pick a random number with 5% chance to spawn alien
  -- 2) pick a random tile from the list of options
  -- 3) check if that tile is occupied
  -- 4) if not occupied, spawn in the alien
  if (g_aliens < 2 and rnd() < 0.1 and g_alien_spawn_cd == 0) then
-  local tilex = flr(rnd(5)) + min_tilex
+  local tilex = flr(rnd(max_tilex - min_tilex)) + min_tilex
   local tiley = flr(rnd(3)) + min_tiley
   local tile, obj = is_occupied(tilex, tiley)
 
@@ -1085,12 +1114,12 @@ function new_cow(tilex, tiley)
 
  cow.rescue = function(self)
   add_points(10, cow.tilex, cow.tiley)
+  add_time(5)
   g_cows_saved += 1
   del(g_objects, self)
  end
 
  cow.explode = function(self)
-  add_points(-50, cow.tilex, cow.tiley)
   del(g_objects, self)
  end
 
@@ -1134,10 +1163,14 @@ end
 
 function spawn_ammo()
  local min_tilex = g_player.tilex - 2
+ local max_tilex = g_player.tilex + 2
  local min_tiley = g_player.tiley + 4
 
+ if (min_tilex < 0) then min_tilex = 1 end
+ if (max_tilex > g_world_tilewidth) then max_tilex = g_world_tilewidth+1 end
+
  if (rnd() < 0.01) then
-  local tilex = flr(rnd(5)) + min_tilex
+  local tilex = flr(rnd(max_tilex - min_tilex)) + min_tilex
   local tiley = min_tiley
   local tile, obj = is_occupied(tilex, tiley)
 
@@ -1165,7 +1198,7 @@ function new_soda(tilex, tiley)
 
  item.update = function(self)
   if (g_player.tilex == self.tilex and g_player.tiley == self.tiley) then
-   add_time(40)
+   add_time(35)
    del(g_objects, self)
   end
  end
@@ -1306,9 +1339,7 @@ end
 
 function explode(sprnum, tilex, tiley, kamikaze)
  -- update points
- if (sprnum == 34) then -- barrel
-  add_points(2, tilex, tiley)
- elseif (sprnum == 38 and not kamikaze) then -- alien
+ if (sprnum == 38 and not kamikaze) then -- alien
   add_points(5, tilex, tiley)
  end
 
