@@ -1,6 +1,7 @@
 # Other ignores
 *.vscode
 *.bin
+**builds/
 
 # Compiled Lua sources
 luac.out
