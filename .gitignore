@@ -1,6 +1,6 @@
 # Other ignores
 *.vscode
-*canyoncrisis.bin
+*.bin
 
 # Compiled Lua sources
 luac.out
