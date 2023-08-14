@@ -242,6 +242,7 @@ local g_time_alive = 0
 
 local g_ammo_flash = nil
 local g_timer_flash = nil
+local g_gameover_timer = 90
 
 function init_playing()
  -- camera
@@ -276,6 +277,7 @@ function init_playing()
  g_ammo_spawned = false
  g_ammo_flash = nil
  g_timer_flash = nil
+ g_gameover_timer = 90
 
  g_current_state = g_game_states.e_playing
 end
@@ -432,9 +434,11 @@ end
 -->8
 -- game over
 function update_gameover()
- if (btnp(k_confirm)) then
+ if (btnp(k_confirm) and g_gameover_timer <= 0) then
   g_current_state = g_game_states.e_loading
  end
+
+ g_gameover_timer -= 1
 end
 
 function draw_gameover()
@@ -459,7 +463,9 @@ function draw_gameover()
  print(cows, 50-(#cows*4), 32, 7)
  print(aliens, 50-(#aliens*4), 38, 7)
 
- print(chr(142).." to restart", 7, 54, 7)
+ if (g_gameover_timer <= 0) then
+  print(chr(142).." to restart", 7, 54, 7)
+ end
 end
 
 -->8
