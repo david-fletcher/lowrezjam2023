@@ -173,7 +173,7 @@ local g_menu = {
  },
  selected = 1,
  x = 24,
- y = 40
+ y = 35
 }
 
 function update_menu()
@@ -196,12 +196,18 @@ function update_menu()
 end
 
 function draw_menu()
+ -- draw the background
  map(120, 4, 0, 0, 8, 8)
- map(0, 0, 0, 0, 8, 8)
- rectfill(0, 14, 64, 20, 5)
- rectfill(0, 39, 64, 45, 5)
- rectfill(54, 54, 64, 64, 5)
- print("canyon crisis", g_title.x, g_title.y, 7)
+ map(0, 8, 0, 0, 8, 8)
+
+ -- draw the player
+ sspr(72, 0, 21, 18, 20, 45)
+
+ -- draw the menu options
+ rectfill(0, g_menu.y-1, 64, g_menu.y+5, 5)
+
+ -- draw the title sprite
+ sspr(0, 104, 58, 24, 3, 5)
 
  -- print the menu options
  print(g_menu.options[1], g_menu.x, g_menu.y, g_menu.selected == 1 and 7 or 6)
@@ -209,6 +215,7 @@ function draw_menu()
  print(g_menu.options[3], g_menu.x + 16 + (#g_menu.options[1]*4) + (#g_menu.options[2]*4), g_menu.y, g_menu.selected == 3 and 7 or 6)
 
  -- show mute state
+ rectfill(54, 54, 64, 64, 5)
  local color = 7
  if (g_muted) then
   color = 2
