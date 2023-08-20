@@ -340,8 +340,13 @@ function update_playing()
  end
 
  -- pls don't ask me why populate_region goes in g_mapregions[1] and NOT g_mapregions[2] because idk and idc
- if (g_mapregions[2] > g_camera.y + 64) then
+ if (g_camera.y + 64 < g_mapregions[2]) then
   g_mapregions[2] -= 256
+ end
+
+ if (g_player.tiley > 32) then
+  -- teleport prevents us from ever reaching g_camera.y == INT_MIN (allows for truly infinite gameplay)
+  teleport()
  end
 
  -- update screenshake
@@ -388,7 +393,7 @@ function draw_playing()
 
  if (g_debug[2]) then
   camera()
-  print(tostr(g_player.moving[0]).."-"..tostr(g_player.moving[1]).."-"..tostr(g_player.moving[2]), 0, 0, 7)
+  print(g_camera.y, 0, 0, 7)
  end
 
  -- timer ui
@@ -414,7 +419,7 @@ function draw_playing()
  line(2, 61-timer_pct, 2, 61, color)
 
  -- points ui
- local point_str = tostr(g_points)
+ local point_str = tostr(g_points, 0x2)
  rectfill(62-(#point_str*4), 1, 62, 7, 5)
  print(point_str, 63-(#point_str*4), 2, 10)
 
@@ -453,7 +458,7 @@ function draw_gameover()
  cls(5)
  print("game over!", 12, 6, 7)
 
- local points = tostr(g_points)
+ local points = tostr(g_points, 0x2)
  local cows = tostr(g_cows_saved)
  local time = tostr(g_time_alive)
  local aliens = tostr(g_aliens_killed)
@@ -715,6 +720,11 @@ function new_player(tilex, tiley)
   end
  end
 
+ player.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
+ end
+
  player.harm = function(self)
   remove_time(20, true)
   g_shake_frame = 6
@@ -778,7 +788,12 @@ function new_barrel(tilex, tiley)
  barrel.h = 10
 
  barrel.update = function(self)
- 
+  -- do nothing
+ end
+
+ barrel.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
  end
 
  barrel.explode = function(self)
@@ -817,6 +832,11 @@ function new_cactus(tilex, tiley)
 
  cactus.update = function(self)
   -- we really just need this object for bullet collisions, nothing else
+ end
+
+ cactus.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
  end
 
  cactus.draw = function(self)
@@ -1004,6 +1024,11 @@ function new_alien(tilex, tiley)
   end
   del(g_objects, self)
  end
+
+ alien.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
+ end
  
  alien.draw = function(self)
   if (self.state == "warning") then
@@ -1166,6 +1191,11 @@ function new_cow(tilex, tiley)
   del(g_objects, self)
  end
 
+ cow.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
+ end
+
  cow.draw = function(self)
   shadow(self)
   spr(107, self.x, self.y, 2, 2)
@@ -1195,6 +1225,11 @@ function new_ammo(tilex, tiley)
    g_ammo_spawned = false
    del(g_objects, self)
   end
+ end
+
+ item.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
  end
 
  item.draw = function(self)
@@ -1244,6 +1279,11 @@ function new_soda(tilex, tiley)
    add_time(35, true)
    del(g_objects, self)
   end
+ end
+
+ item.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
  end
 
  item.draw = function(self)
@@ -1334,13 +1374,25 @@ function shadow(o)
  ovalfill(o.x+1, o.y+12, o.x+14, o.y+17, 2)
 end
 
+function teleport()
+ local toffset = -g_player.tiley + 1
+ local poffset = -g_player.y + 12
+ g_camera.y = g_camera.y + poffset
+ g_camera.ytarget = g_camera.ytarget + poffset
+ g_mapregions[1] = g_mapregions[1] + poffset
+ g_mapregions[2] = g_mapregions[2] + poffset
+ for obj in all(g_objects) do
+  obj.teleport(obj, toffset, poffset)
+ end
+end
+
 function add_points(num, tilex, tiley)
  -- convert to screen coordinates
  local screenx = ((tilex-1)*16) - g_camera.x
  local screeny = -((tiley-1)*16) - g_camera.y
 
  -- add to point tracking
- g_points += num
+ g_points += num>>16
 
  -- point particle setup
  local particle = {}
@@ -1772,8 +1824,8 @@ __map__
 0000000000000000000000000000000000003233000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000020210000000022230000000000000000000000000000202100000000000022232223000000000000000000000000000000002223000022230000000000002223222300000000000000000000000000000000000000000000000000000000000000000000000000002223000000000000000000001011000000000000
 0000000030310000000032330000000000000000000000000000303100000000000032333233000000000000000000000000000000003233000032330000000000003233323300000000000000000000000000000000000000000000000000000000000000000000000000003233000000000000000000000000000000000000
-0000000000002021000000000000202100000000202100000000000000000000000022232223000000002223202100000000000000000000000000000000000000000000000000000000000022230000000020210000000022230000000000000000000000000000000020212223000000002223202100000000000000340000
-0000000000003031000000000000303100000000303100000000000000000000000032333233000000003233303100000000000000000000000000000000000000000000000000000000000032330000000030310000000032330000000000000000000000000000000030313233000000003233303100000000000000000000
+0000000000002021000000000000202100000000202100000000000000000000000022232223000000002223202100000000000000000000000000000000000000000000000000000000000022230000000020210000000000000000000000000000000000000000000020212223000000002223202100000000000000340000
+0000000000003031000000000000303100000000303100000000000000000000000032333233000000003233303100000000000000000000000000000000000000000000000000000000000032330000000030310000000000000000000000000000000000000000000030313233000000003233303100000000000000000000
 0000222300000000000000000000000000000000000022230000000020210000000000000000202100000000000000000000000000000000000000002021000000002021000000000000000000000000000000000000000000002223000000002223000000000000000000000000000000000000000000000000240000000000
 0000323300000000000000000000000000000000000032330000000030310000000000000000303100000000000000000000000000000000000000003031000000003031000000000000000000000000000000000000000000003233000000003233000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000222320210000000000000000000000000000000000000000000000000000000000000000000000000000222300000000000000000000000000000000000000000000000000000000000000000000
