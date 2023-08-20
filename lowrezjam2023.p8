@@ -617,6 +617,11 @@ function spawn_bullet(tilex, tiley)
   end
  end
 
+ bullet.teleport = function(self, toffset, poffset)
+  self.tiley += toffset
+  self.y += poffset
+ end
+
  bullet.draw = function(self)
   spr(2, self.x, self.y, 1, 2)
  end
